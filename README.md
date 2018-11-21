@@ -1,4 +1,4 @@
-# Tensorflow implementation of IntroVAE
+# Tensorflow Implementation of IntroVAE
 
 This repository contains an implementation of the IntroVAE model in tensorflow based on the paper titled "IntroVAE: Introspective Variational Autoencoders for Photographic Image Synthesis" https://arxiv.org/abs/1807.06358.
 
@@ -23,5 +23,5 @@ $ tar xvzf celebA-HQ-128x128.tar.gz -C datasets
 
 For a baseline training on the CelebA-HQ-128x128 dataset, simply run the following script.
 ```bash
-$ baseline_128x128.sh
+$ bash ./baseline_128x128.sh
 ```
