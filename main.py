@@ -58,8 +58,12 @@ args.original_shape = (args.n_channels, ) + args.shape
 # Build networks
 #
 
-encoder_layers = model.encoder_layers_introvae(args.shape, args.base_filter_num, args.encoder_use_bn)
-generator_layers = model.generator_layers_introvae(args.shape, args.base_filter_num, args.generator_use_bn)
+if args.model_architecture == 'deepsvdd':
+    encoder_layers = model.encoder_layers_deepsvdd(args.shape, args.base_filter_num, args.encoder_use_bn)
+    generator_layers = model.generator_layers_deepsvdd(args.shape, args.base_filter_num, args.generator_use_bn)
+else:
+    encoder_layers = model.encoder_layers_introvae(args.shape, args.base_filter_num, args.encoder_use_bn)
+    generator_layers = model.generator_layers_introvae(args.shape, args.base_filter_num, args.generator_use_bn)
 
 encoder_input = Input(batch_shape=[args.batch_size] + list(args.original_shape), name='encoder_input')
 generator_input = Input(batch_shape=(args.batch_size, args.latent_dim), name='generator_input')
