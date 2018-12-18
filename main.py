@@ -38,12 +38,18 @@ data_path = os.path.join(args.datasets_dir, args.dataset)
 iterations = args.nb_epoch * args.train_size // args.batch_size
 iterations_per_epoch = args.train_size // args.batch_size
 
-train_dataset, train_iterator, train_iterator_init_op, train_next \
-     = data.create_dataset(os.path.join(data_path, "train/*.npy"), args.batch_size, args.train_size)
-test_dataset, test_iterator, test_iterator_init_op, test_next \
-     = data.create_dataset(os.path.join(data_path, "test/*.npy"), args.batch_size, args.test_size)
-fixed_dataset, fixed_iterator, fixed_iterator_init_op, fixed_next \
-     = data.create_dataset(os.path.join(data_path, "train/*.npy"), args.batch_size, args.latent_cloud_size)
+if args.dataset == 'cifar10':
+   ds = data.create_cifar10_unsup_dataset(args.batch_size, args.train_size, args.test_size, args.latent_cloud_size)
+   train_dataset, train_iterator, train_iterator_init_op, train_next = ds[0]
+   test_dataset, test_iterator, test_iterator_init_op, test_next = ds[1]
+   fixed_dataset, fixed_iterator, fixed_iterator_init_op, fixed_next = ds[2]
+else:
+    train_dataset, train_iterator, train_iterator_init_op, train_next \
+         = data.create_dataset(os.path.join(data_path, "train/*.npy"), args.batch_size, args.train_size)
+    test_dataset, test_iterator, test_iterator_init_op, test_next \
+         = data.create_dataset(os.path.join(data_path, "test/*.npy"), args.batch_size, args.test_size)
+    fixed_dataset, fixed_iterator, fixed_iterator_init_op, fixed_next \
+         = data.create_dataset(os.path.join(data_path, "train/*.npy"), args.batch_size, args.latent_cloud_size)
 
 args.n_channels = 3 if args.color else 1
 args.original_shape = (args.n_channels, ) + args.shape

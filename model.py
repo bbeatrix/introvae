@@ -17,7 +17,7 @@ def encoder_layers_introvae(image_size, base_channels, bn_allowed):
     map_size = image_size[0] // 2
 
     block = 1
-    channels = base_channels * 2
+    channels = base_channels * 8
     while map_size > 4:
         layers.append(residual_block('encoder', [(3, 3), (3, 3)], channels, block=block, bn_allowed=bn_allowed))
         layers.append(AveragePooling2D(pool_size=(2, 2), strides=None, padding='valid', name='encoder_avgpool_'+ str(block)))
