@@ -18,6 +18,7 @@ parser.add_argument('--color', dest="color", default=True, type=str2bool, help="
 parser.add_argument('--train_size', dest="train_size", type=int, default=29000, help="Train set size.")
 parser.add_argument('--test_size', dest="test_size", type=int, default=1000, help="Test set size.")
 parser.add_argument('--shape', dest="shape", default="128,128", help="Image shape.")
+parser.add_argument('--normal_class', dest="normal_class", type=int, default="-1", help="Normal class for oneclass classification (0-9, -1 means all classes)")
 
 # model hyperparameters
 parser.add_argument('--m', dest="m", type=int, default=120, help="Value of model hyperparameter m.")
@@ -55,6 +56,7 @@ parser.add_argument('--memory_share', dest="memory_share", type=float, default=0
 parser.add_argument('--frequency', dest="frequency", type=int, default=20, help="Image saving frequency.")
 parser.add_argument('--save_latent', dest="save_latent", type=str2bool, default=False, help="If True, then save latent pointcloud.")
 parser.add_argument('--latent_cloud_size', dest="latent_cloud_size", type=int, default=10000, help="Size of latent cloud.")
+parser.add_argument('--oneclass_eval', dest="oneclass_eval", type=str2bool, default=False, help="If True, then eval oneclass classification with AUC")
 
 args = parser.parse_args()
 

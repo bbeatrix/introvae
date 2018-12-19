@@ -39,7 +39,7 @@ iterations = args.nb_epoch * args.train_size // args.batch_size
 iterations_per_epoch = args.train_size // args.batch_size
 
 if args.dataset == 'cifar10':
-   ds = data.create_cifar10_unsup_dataset(args.batch_size, args.train_size, args.test_size, args.latent_cloud_size)
+   ds = data.create_cifar10_unsup_dataset(args.batch_size, args.train_size, args.test_size, args.latent_cloud_size, args.normal_class)
    train_dataset, train_iterator, train_iterator_init_op, train_next = ds[0]
    test_dataset, test_iterator, test_iterator_init_op, test_next = ds[1]
    fixed_dataset, fixed_iterator, fixed_iterator_init_op, fixed_next = ds[2]
@@ -159,6 +159,10 @@ with tf.Session() as session:
         global_iters = int(os.path.basename(ckpt.model_checkpoint_path).split('-')[1])
         start_epoch = (global_iters * args.batch_size) // args.train_size
     print('Global iters: ', global_iters)
+
+    if args.oneclass_eval:
+        utils.save_kldiv(session, args.prefix, start_epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next}), OrderedDict({"mean": z_mean, "log_var": z_log_var}), args.test_size)
+        utils.oneclass_eval(1, "{}_{}_epoch{}_iter{}.npy".format(args.prefix, 'kldiv', start_epoch, global_iters), args.m)
 
     for iteration in range(iterations):
         epoch = global_iters * args.batch_size // args.train_size

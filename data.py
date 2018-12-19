@@ -37,10 +37,17 @@ def create_dataset_from_ndarray(x, batch_size, limit):
     return (dataset, iterator, iterator_init_op, get_next)
 
 
-def create_cifar10_unsup_dataset(batch_size, train_limit, test_limit, fixed_limit):
+def create_cifar10_unsup_dataset(batch_size, train_limit, test_limit, fixed_limit, normal_class):
     (x_train, y_train), (x_test, y_test) = cifar10.load_data()
     print(x_train.shape)
-    train_tuple = create_dataset_from_ndarray(x_train, batch_size, train_limit)
+    if normal_class == -1:
+        print(x_train.shape)
+        train_tuple = create_dataset_from_ndarray(x_train, batch_size, train_limit)
+    else:
+        label_mask = y_train == normal_class
+        x_train_oneclass = x_train[label_mask.flatten()]
+        print(x_train_oneclass.shape)
+        train_tuple = create_dataset_from_ndarray(x_train_oneclass, batch_size, train_limit)
     test_tuple = create_dataset_from_ndarray(x_test, batch_size, test_limit)
     fixed_tuple = create_dataset_from_ndarray(x_train, batch_size, fixed_limit)
     return (train_tuple, test_tuple, fixed_tuple)
