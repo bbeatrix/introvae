@@ -57,6 +57,7 @@ parser.add_argument('--frequency', dest="frequency", type=int, default=20, help=
 parser.add_argument('--save_latent', dest="save_latent", type=str2bool, default=False, help="If True, then save latent pointcloud.")
 parser.add_argument('--latent_cloud_size', dest="latent_cloud_size", type=int, default=10000, help="Size of latent cloud.")
 parser.add_argument('--oneclass_eval', dest="oneclass_eval", type=str2bool, default=False, help="If True, then eval oneclass classification with AUC")
+parser.add_argument('--seed', dest="seed", type=int, default=10, help="Random seed" )
 
 args = parser.parse_args()
 

@@ -18,7 +18,8 @@ args = params.getArgs()
 print(args)
 
 # set random seed
-np.random.seed(10)
+np.random.seed(args.seed)
+tf.set_random_seed(args.seed)
 
 print('Keras version: ', keras.__version__)
 print('Tensorflow version: ', tf.__version__)
@@ -162,7 +163,7 @@ with tf.Session() as session:
 
     if args.oneclass_eval:
         utils.save_kldiv(session, args.prefix, start_epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next}), OrderedDict({"mean": z_mean, "log_var": z_log_var}), args.test_size)
-        utils.oneclass_eval(1, "{}_{}_epoch{}_iter{}.npy".format(args.prefix, 'kldiv', start_epoch, global_iters), args.m)
+        utils.oneclass_eval(args.normal_class, "{}_{}_epoch{}_iter{}.npy".format(args.prefix, 'kldiv', start_epoch, global_iters), args.m)
 
     for iteration in range(iterations):
         epoch = global_iters * args.batch_size // args.train_size
@@ -204,3 +205,7 @@ with tf.Session() as session:
             if args.model_path is not None:
                 saved = saver.save(session, args.model_path + "/model", global_step=global_iters)
                 print('Saved model to ' + saved)
+
+        if ((global_iters % iterations_per_epoch == 0) and args.oneclass_eval):
+            utils.save_kldiv(session, args.prefix, epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next}), OrderedDict({"mean": z_mean, "log_var": z_log_var}), args.test_size)
+            utils.oneclass_eval(args.normal_class, "{}_{}_epoch{}_iter{}.npy".format(args.prefix, 'kldiv', epoch, global_iters), args.m)

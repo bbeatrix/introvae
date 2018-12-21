@@ -42,12 +42,13 @@ def create_cifar10_unsup_dataset(batch_size, train_limit, test_limit, fixed_limi
     print(x_train.shape)
     if normal_class == -1:
         print(x_train.shape)
-        train_tuple = create_dataset_from_ndarray(x_train, batch_size, train_limit)
+        x_train_new = np.random.shuffle(x_train)
     else:
         label_mask = y_train == normal_class
         x_train_oneclass = x_train[label_mask.flatten()]
         print(x_train_oneclass.shape)
-        train_tuple = create_dataset_from_ndarray(x_train_oneclass, batch_size, train_limit)
+        x_train_new = np.random.shuffle(x_train_oneclass)
+    train_tuple = create_dataset_from_ndarray(x_train_new, batch_size, train_limit)
     test_tuple = create_dataset_from_ndarray(x_test, batch_size, test_limit)
     fixed_tuple = create_dataset_from_ndarray(x_train, batch_size, fixed_limit)
     return (train_tuple, test_tuple, fixed_tuple)
