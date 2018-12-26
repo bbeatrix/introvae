@@ -40,10 +40,10 @@ iterations = args.nb_epoch * args.train_size // args.batch_size
 iterations_per_epoch = args.train_size // args.batch_size
 
 if args.dataset == 'cifar10':
-   ds = data.create_cifar10_unsup_dataset(args.batch_size, args.train_size, args.test_size, args.latent_cloud_size, args.normal_class)
-   train_dataset, train_iterator, train_iterator_init_op, train_next = ds[0]
-   test_dataset, test_iterator, test_iterator_init_op, test_next = ds[1]
-   fixed_dataset, fixed_iterator, fixed_iterator_init_op, fixed_next = ds[2]
+    ds = data.create_cifar10_unsup_dataset(args.batch_size, args.train_size, args.test_size, args.latent_cloud_size, args.normal_class)
+    train_data, train_placeholder, train_dataset, train_iterator, train_iterator_init_op, train_next = ds[0]
+    test_data, test_placeholder, test_dataset, test_iterator, test_iterator_init_op, test_next = ds[1]
+    fixed_data, fixed_placeholder, fixed_dataset, fixed_iterator, fixed_iterator_init_op, fixed_next = ds[2]
 else:
     train_dataset, train_iterator, train_iterator_init_op, train_next \
          = data.create_dataset(os.path.join(data_path, "train/*.npy"), args.batch_size, args.train_size)
@@ -149,8 +149,8 @@ start_epoch = 0
 
 with tf.Session() as session:
     init = tf.global_variables_initializer()
-    session.run([init, train_iterator_init_op, test_iterator_init_op, fixed_iterator_init_op])
-
+    session.run([init, train_iterator_init_op, test_iterator_init_op, fixed_iterator_init_op],
+                feed_dict={train_placeholder: train_data, test_placeholder: test_data, fixed_placeholder: fixed_data})
     summary_writer = tf.summary.FileWriter(args.prefix+"/", graph=tf.get_default_graph())
     saver = tf.train.Saver(max_to_keep=None)
     if args.model_path is not None and tf.train.checkpoint_exists(args.model_path):

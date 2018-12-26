@@ -25,7 +25,8 @@ def create_dataset(path, batch_size, limit):
 
 
 def create_dataset_from_ndarray(x, batch_size, limit):
-    dataset = tf.data.Dataset.from_tensor_slices(x.astype(np.float32)) \
+    x_placeholder = tf.placeholder(np.float32, x.shape)
+    dataset = tf.data.Dataset.from_tensor_slices(x_placeholder) \
         .take((limit // batch_size) * batch_size) \
         .map(lambda x: x / 255.) \
         .batch(batch_size) \
@@ -34,7 +35,7 @@ def create_dataset_from_ndarray(x, batch_size, limit):
     iterator = dataset.make_initializable_iterator()
     iterator_init_op = iterator.initializer
     get_next = iterator.get_next()
-    return (dataset, iterator, iterator_init_op, get_next)
+    return (x, x_placeholder, dataset, iterator, iterator_init_op, get_next)
 
 
 def create_cifar10_unsup_dataset(batch_size, train_limit, test_limit, fixed_limit, normal_class):
