@@ -92,8 +92,16 @@ sampled_latent_input = Input(batch_shape=(args.batch_size, args.latent_dim), nam
 zpp_mean, zpp_log_var = encoder(generator(sampled_latent_input))
 zpp_mean_ng, zpp_log_var_ng = encoder(tf.stop_gradient(generator(sampled_latent_input)))
 
-encoder_optimizer = tf.train.AdamOptimizer(learning_rate=args.lr)
-generator_optimizer = tf.train.AdamOptimizer(learning_rate=args.lr)
+global_step = tf.Variable(0, trainable=False)
+
+starter_learning_rate = args.lr
+if args.lr_schedule == 'exponential':
+    learning_rate = tf.train.exponential_decay(starter_learning_rate, global_step, 500, 0.96, staircase=True)
+else:
+    learning_rate = tf.constant(args.lr)
+
+encoder_optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
+generator_optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
 
 print('Encoder')
 encoder.summary()
@@ -111,14 +119,24 @@ l_reg_zpp_ng = losses.reg_loss(zpp_mean_ng, zpp_log_var_ng)
 l_ae = losses.mse_loss(encoder_input, xr, args.original_shape)
 l_ae2 = losses.mse_loss(encoder_input, xr_latent, args.original_shape)
 
+
+z_mean_gradients = tf.gradients(z_mean * tf.random_normal((args.latent_dim,)), [encoder_input])[0]
+z_log_var_gradients = tf.gradients(z_log_var * tf.random_normal((args.latent_dim,)), [encoder_input])[0]
+
+spectreg_loss = tf.reduce_mean(tf.reduce_sum(tf.square(z_mean_gradients), axis=1))
+spectreg_loss += tf.reduce_mean(tf.reduce_sum(tf.square(z_log_var_gradients), axis=1))
+#spectreg_loss = tf.reduce_mean(spectreg_loss, axis=-1)
+
+
 encoder_l_adv = l_reg_z + args.alpha * K.maximum(0., args.m - l_reg_zr_ng) + args.alpha * K.maximum(0., args.m - l_reg_zpp_ng)
-encoder_loss = encoder_l_adv + args.beta * l_ae
+encoder_loss = encoder_l_adv + args.beta * l_ae + args.gradreg * spectreg_loss
 
 l_reg_zr = losses.reg_loss(zr_mean, zr_log_var)
 l_reg_zpp = losses.reg_loss(zpp_mean, zpp_log_var)
 
 generator_l_adv = args.alpha * l_reg_zr + args.alpha * l_reg_zpp
-generator_loss = generator_l_adv + args.beta * l_ae2
+generator_loss = generator_l_adv + args.beta * l_ae2 + args.gradreg * spectreg_loss
+
 
 #
 # Define training step operations
@@ -131,7 +149,7 @@ encoder_grads = encoder_optimizer.compute_gradients(encoder_loss, var_list=encod
 encoder_apply_grads_op = encoder_optimizer.apply_gradients(encoder_grads)
 
 generator_grads = generator_optimizer.compute_gradients(generator_loss, var_list=generator_params)
-generator_apply_grads_op = generator_optimizer.apply_gradients(generator_grads)
+generator_apply_grads_op = generator_optimizer.apply_gradients(generator_grads, global_step=global_step)
 
 for v in encoder_params:
     tf.summary.histogram(v.name, v)
@@ -181,12 +199,12 @@ with tf.Session() as session:
             summary_writer.add_summary(summary, global_iters)
 
         if (global_iters % args.frequency) == 0:
-            enc_loss_np, enc_l_ae_np, l_reg_z_np, l_reg_zr_ng_np, l_reg_zpp_ng_np, generator_loss_np, dec_l_ae_np, l_reg_zr_np, l_reg_zpp_np = \
-             session.run([encoder_loss, l_ae, l_reg_z, l_reg_zr_ng, l_reg_zpp_ng, generator_loss, l_ae2, l_reg_zr, l_reg_zpp],
+            enc_loss_np, enc_l_ae_np, l_reg_z_np, l_reg_zr_ng_np, l_reg_zpp_ng_np, generator_loss_np, dec_l_ae_np, l_reg_zr_np, l_reg_zpp_np, lr_np = \
+             session.run([encoder_loss, l_ae, l_reg_z, l_reg_zr_ng, l_reg_zpp_ng, generator_loss, l_ae2, l_reg_zr, l_reg_zpp, learning_rate],
                          feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p})
             print('Epoch: {}/{}, iteration: {}/{}'.format(epoch+1, args.nb_epoch, iteration+1, iterations))
-            print(' Enc_loss: {}, l_ae:{},  l_reg_z: {}, l_reg_zr_ng: {}, l_reg_zpp_ng: {}'.format(enc_loss_np, enc_l_ae_np, l_reg_z_np, l_reg_zr_ng_np, l_reg_zpp_ng_np))
-            print(' Dec_loss: {}, l_ae:{}, l_reg_zr: {}, l_reg_zpp: {}'.format(generator_loss_np, dec_l_ae_np, l_reg_zr_np, l_reg_zpp_np))
+            print(' Enc_loss: {}, l_ae:{},  l_reg_z: {}, l_reg_zr_ng: {}, l_reg_zpp_ng: {}, lr={}'.format(enc_loss_np, enc_l_ae_np, l_reg_z_np, l_reg_zr_ng_np, l_reg_zpp_ng_np, lr_np))
+            print(' Dec_loss: {}, l_ae:{}, l_reg_zr: {}, l_reg_zpp: {}, lr={}'.format(generator_loss_np, dec_l_ae_np, l_reg_zr_np, l_reg_zpp_np, lr_np))
 
         if ((global_iters % iterations_per_epoch == 0) and args.save_latent):
             utils.save_output(session, args.prefix, epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next}), OrderedDict({"test_mean": z_mean, "test_log_var": z_log_var}), args.test_size)
@@ -201,7 +219,7 @@ with tf.Session() as session:
             print('Save reconstructed images.')
             utils.plot_images(np.transpose(x_r, (0, 2, 3, 1)), n_x, n_y, "{}_reconstructed_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
 
-        if ((global_iters % iterations_per_epoch == 0) and ((epoch + 1) % 10 == 0)):
+        if False and ((global_iters % iterations_per_epoch == 0) and ((epoch + 1) % 10 == 0)):
             if args.model_path is not None:
                 saved = saver.save(session, args.model_path + "/model", global_step=global_iters)
                 print('Saved model to ' + saved)

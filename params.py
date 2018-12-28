@@ -59,6 +59,10 @@ parser.add_argument('--latent_cloud_size', dest="latent_cloud_size", type=int, d
 parser.add_argument('--oneclass_eval', dest="oneclass_eval", type=str2bool, default=False, help="If True, then eval oneclass classification with AUC")
 parser.add_argument('--seed', dest="seed", type=int, default=10, help="Random seed" )
 
+parser.add_argument('--gradreg', dest="gradreg", type=float, default=0.0, help="Gradreg (spectreg).")
+parser.add_argument('--lr_schedule', dest="lr_schedule", type=str, default="constant", help="Learning rate scheduling mode, can be: constant, exponential.")
+
+
 args = parser.parse_args()
 
 def getArgs():
