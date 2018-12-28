@@ -62,6 +62,7 @@ parser.add_argument('--seed', dest="seed", type=int, default=10, help="Random se
 parser.add_argument('--gradreg', dest="gradreg", type=float, default=0.0, help="Gradreg (spectreg).")
 parser.add_argument('--lr_schedule', dest="lr_schedule", type=str, default="constant", help="Learning rate scheduling mode, can be: constant, exponential.")
 
+parser.add_argument('--gcnorm', dest='gcnorm', type=str, default="l1", help="Global contrast normalization type (can be: l1/std/None)" )
 
 args = parser.parse_args()
 

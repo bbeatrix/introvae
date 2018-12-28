@@ -40,7 +40,7 @@ iterations = args.nb_epoch * args.train_size // args.batch_size
 iterations_per_epoch = args.train_size // args.batch_size
 
 if args.dataset == 'cifar10':
-    ds = data.create_cifar10_unsup_dataset(args.batch_size, args.train_size, args.test_size, args.latent_cloud_size, args.normal_class)
+    ds = data.create_cifar10_unsup_dataset(args.batch_size, args.train_size, args.test_size, args.latent_cloud_size, args.normal_class, args.gcnorm)
     train_data, train_placeholder, train_dataset, train_iterator, train_iterator_init_op, train_next = ds[0]
     test_data, test_placeholder, test_dataset, test_iterator, test_iterator_init_op, test_next = ds[1]
     fixed_data, fixed_placeholder, fixed_dataset, fixed_iterator, fixed_iterator_init_op, fixed_next = ds[2]

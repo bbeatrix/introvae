@@ -38,9 +38,23 @@ def create_dataset_from_ndarray(x, batch_size, limit):
     return (x, x_placeholder, dataset, iterator, iterator_init_op, get_next)
 
 
-def create_cifar10_unsup_dataset(batch_size, train_limit, test_limit, fixed_limit, normal_class):
+def create_cifar10_unsup_dataset(batch_size, train_limit, test_limit, fixed_limit, normal_class, gcnorm):
     (x_train, y_train), (x_test, y_test) = cifar10.load_data()
     print(x_train.shape)
+    if gcnorm == "std":
+        x_train_mean = np.mean(x_train, axis=(1, 2, 3), keepdims=True)
+        x_test_mean = np.mean(x_test, axis=(1, 2, 3), keepdims=True)
+        x_train_scale = np.std(x_train, axis=(1, 2, 3), keepdims=True)
+        x_test_scale = np.std(x_test, axis=(1, 2, 3), keepdims=True)
+        x_train = (x_train - x_train_mean) / x_train_scale
+        x_test = (x_test - x_test_mean) / x_test_scale
+    elif gcnorm == "l1":
+        x_train_mean = np.mean(x_train, axis=(1, 2, 3), keepdims=True)
+        x_test_mean = np.mean(x_test, axis=(1, 2, 3), keepdims=True)
+        x_train_scale = np.sum(np.absolute(x_train), axis=(1, 2, 3), keepdims=True)
+        x_test_scale = np.sum(np.absolute(x_test), axis=(1, 2, 3), keepdims=True)
+        x_train = (x_train - x_train_mean) / x_train_scale
+        x_test = (x_test - x_test_mean) / x_test_scale
     if normal_class == -1:
         print(x_train.shape)
         np.random.shuffle(x_train)
