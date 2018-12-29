@@ -1,8 +1,8 @@
 #!/bin/bash
 m=100
 lrschedule=exponential
-lr=0.001
-bs=200
+lr=0.0001
+bs=50
 seed=0
 for class in {0..9}
 do
