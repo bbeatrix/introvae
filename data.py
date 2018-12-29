@@ -29,6 +29,7 @@ def create_dataset_from_ndarray(x, batch_size, limit):
     dataset = tf.data.Dataset.from_tensor_slices(x_placeholder) \
         .take((limit // batch_size) * batch_size) \
         .map(lambda x: x / 255.) \
+        .map(lambda x: (x-K.mean(x, axis=(0,1,2), keepdims=True))/K.std(x, axis=(0,1,2), keepdims=True)) \
         .batch(batch_size) \
         .repeat() \
         .prefetch(2)

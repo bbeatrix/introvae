@@ -1,0 +1,6 @@
+#!/bin/bash
+
+for class in {1..9}
+do
+    CUDA_VISIBLE_DEVICES=1 nohup python3.6 main.py --lr_schedule exponential --gcnorm None --seed 0 --model_architecture deepsvdd --oneclass_eval True --normal_class $class --dataset cifar10 --shape 32,32 --train_size 50000 --test_size 10000 --m 50 --alpha 0.25 --beta 1.0 --latent_dim 128 --batch_size 200 --lr 0.0001 --nb_epoch 100 --prefix pictures/cifar10_std_leakyrelu_lr=1e-4_exponential/cifar10_class=$class\_seed=0_m=50_alpha=0.25_beta=1.0_dim=128_bs=200_wd=0.000001_std_leakyrelu_lr=1e-4_exp --model_path  pictures/cifar10_std_leakyrelu_lr=1e-4_exponential/cifar10_class=$class\_seed=0_m=50_alpha=0.25_beta=1.0_dim=128_bs=200_wd=0.000001_std_leakyrelu_lr=1e-4_exp/model --save_latent True --base_filter_num 32 --encoder_use_bn True --encoder_wd 0.000001 --generator_use_bn True --generator_wd 0.000001 --frequency 100 --verbose 2 --resnet_wideness 1 > cifar10_class=$class\_std_leakyrelu_lr=1e-4_exp.cout 2> cifar10_class=$class\_std_leakyrelu_lr=1e-4_exp.cerr
+done

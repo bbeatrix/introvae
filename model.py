@@ -1,7 +1,7 @@
 import math
 import keras.backend as K
 from keras.layers import Conv2D, BatchNormalization, Activation, Add, \
-    AveragePooling2D, Input, Dense, Flatten, UpSampling2D, Layer, Reshape, Concatenate, Lambda, MaxPooling2D
+    AveragePooling2D, Input, Dense, Flatten, UpSampling2D, Layer, Reshape, Concatenate, Lambda, MaxPooling2D, LeakyReLU
 from keras.models import Model
 from keras.regularizers import l2
 
@@ -11,7 +11,8 @@ def encoder_layers_deepsvdd(image_size, base_channels=32, bn_allowed=True):
         layers.append(Conv2D(base_channels*(2**i), (5, 5), padding='same', kernel_initializer='glorot_uniform', name='encoder_conv_'+str(i)))
         if bn_allowed:
             layers.append(BatchNormalization(axis=1, name='encoder_bn_'+str(i)))
-        layers.append(Activation('relu'))
+        # layers.append(Activation('relu'))
+        layers.append(LeakyReLU(alpha=0.1))
         layers.append(MaxPooling2D(pool_size=(2, 2), strides=None, padding='valid', name='encoder_maxpool_'+str(i)))
     layers.append(Flatten(name='encoder_reshape'))
     return layers
@@ -19,12 +20,14 @@ def encoder_layers_deepsvdd(image_size, base_channels=32, bn_allowed=True):
 def generator_layers_deepsvdd(image_size, base_channels=32, bn_allowed=True):
     layers = []
     layers.append(Reshape((-1, 4, 4), name='generator_reshape'))
-    layers.append(Activation('relu'))
+    # layers.append(Activation('relu'))
+    layers.append(LeakyReLU(alpha=0.1))
     for i in reversed(range(0, 3)):
         layers.append(Conv2D(base_channels*(2**i), (5, 5), padding='same', kernel_initializer='glorot_uniform', name='generator_conv_'+str(2-i)))
         if bn_allowed:
             layers.append(BatchNormalization(axis=1, name='generator_bn_'+str(2-i)))
-        layers.append(Activation('relu'))
+        # layers.append(Activation('relu'))
+        layers.append(LeakyReLU(alpha=0.1))
         layers.append(UpSampling2D(size=(2, 2), name='generator_upsample_'+str(2-i)))
     layers.append(Conv2D(3, (5, 5), padding='same', kernel_initializer='glorot_uniform', name='generator_conv_'+str(3)))
     if bn_allowed:
