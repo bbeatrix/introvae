@@ -19,9 +19,10 @@ def encoder_layers_deepsvdd(image_size, base_channels=32, bn_allowed=True):
 
 def generator_layers_deepsvdd(image_size, base_channels=32, bn_allowed=True):
     layers = []
-    layers.append(Reshape((-1, 4, 4), name='generator_reshape'))
+    layers.append(Reshape((-1, 1, 1), name='generator_reshape'))
+    layers.append(Lambda(lambda x: x * K.ones( ((2**2)*base_channels, 4, 4)   )))
     # layers.append(Activation('relu'))
-    layers.append(LeakyReLU(alpha=0.1))
+    # layers.append(LeakyReLU(alpha=0.1))
     for i in reversed(range(0, 3)):
         layers.append(Conv2D(base_channels*(2**i), (5, 5), padding='same', kernel_initializer='glorot_uniform', name='generator_conv_'+str(2-i)))
         if bn_allowed:
