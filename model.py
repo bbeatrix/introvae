@@ -1,9 +1,57 @@
 import math
 import keras.backend as K
 from keras.layers import Conv2D, BatchNormalization, Activation, Add, \
-    AveragePooling2D, Input, Dense, Flatten, UpSampling2D, Layer, Reshape, Concatenate, Lambda, MaxPooling2D, LeakyReLU
+    AveragePooling2D, Input, Dense, Flatten, UpSampling2D, Layer, Reshape, Concatenate, Lambda, MaxPooling2D, LeakyReLU, Conv2DTranspose
 from keras.models import Model
 from keras.regularizers import l2
+
+def encoder_layers_dcgan(image_size, base_channels, bn_allowed, wd):
+    layers = []
+    channels = [16, 32, 64]
+    kernel = 4
+    for idx, channel in enumerate(channels):
+        if idx == (len(channels)-1):
+            border_mode="valid"
+            stride = 1
+            activation = "linear"
+            use_bn = False
+        else:
+            border_mode = "same"
+            stride = 2
+            activation = "relu"
+            use_bn = bn_allowed
+        layers.append(Conv2D(channel, (kernel, kernel), strides=(stride, stride), padding=border_mode, use_bias=False, kernel_regularizer=l2(wd)))
+        if use_bn:
+            layers.append(BatchNormalization(axis=1))
+        layers.append(Activation(activation, name="encoder_{}".format(idx)))
+    layers.append(Flatten())
+    return layers
+
+def generator_layers_dcgan(image_size, base_channels, bn_allowed, wd):
+    layers = []
+    channels = [64, 32, 16, 3]
+    layers.append(Reshape((-1, 2, 2)))
+    stride = 2
+    kernel = 4
+    for idx, channel in enumerate(channels):
+        if False and idx == 0:
+            sizeX *= 4
+            sizeY *= 4
+            border_mode="valid"
+        else:
+            border_mode = "same"
+        if idx == (len(channels)-1):
+            activation = "sigmoid"
+            use_bn = False
+        else:
+            activation="relu"
+            use_bn = bn_allowed
+        layers.append(Conv2DTranspose(channel, (kernel, kernel), use_bias=False, strides=(stride, stride), padding=border_mode, kernel_regularizer=l2(wd)))
+        if use_bn:
+            layers.append(BatchNormalization(axis=1))
+        layers.append(Activation(activation, name="generator_{}".format(idx)))
+    return layers
+
 
 def encoder_layers_deepsvdd(image_size, base_channels=32, bn_allowed=True):
     layers = []
