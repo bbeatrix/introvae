@@ -2,6 +2,38 @@ import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
 
+sotas = {
+    0: 0.671,
+    1: 0.659,
+    2: 0.529,
+    3: 0.591,
+    4: 0.662,
+    5: 0.657,
+    6: 0.749,
+    7: 0.673,
+    8: 0.768,
+    9: 0.76
+}
+
+from os import listdir
+from os.path import isfile, join
+
+path = "../amazon/"
+
+onlyfiles = [f for f in listdir(path) if isfile(join(path, f))]
+
+couts = []
+for f in onlyfiles:
+    rec = { 'filename': f, 'filepath': join(path, f) }
+    parts = f.split('_')
+    for part in parts:
+        parts2 = part.split('=')
+        if len(parts2) == 2:
+            rec[parts2[0]] = parts2[1]
+    couts.append(rec)
+print(couts)
+
+"""
 couts = [
     {'filename': 'cifar10_seed=0_class=0_m=60.cout', 'class': 0, 'sota': 0.671},
     {'filename': 'cifar10_seed=0_class=1_m=60.cout', 'class': 1, 'sota': 0.659},
@@ -14,14 +46,38 @@ couts = [
     {'filename': 'cifar10_seed=0_class=8_m=60.cout', 'class': 8, 'sota': 0.768},
     {'filename': 'cifar10_seed=0_class=9_m=60.cout', 'class': 9, 'sota': 0.76}
 ]
+"""
 
-for cout in couts:
+def get_color(rec):
+ if int(rec['bs']) == 50:
+  if rec['lr'] == '0.0001':
+   return 'red'
+  else:
+   return 'orange'
+ else:
+  if rec['lr'] == '0.0001':
+   return 'cyan'
+  else:
+   return 'blue'
+
+
+def byclass():
+    for i in range(10):
+        res = []
+        for cout in couts:
+            if int(cout['class']) == i:
+                res.append(cout)
+        yield res
+
+for q in byclass():
+  plt.clf()
+  fig, ax = plt.subplots()
+
+  for cout in q:
     xs = []
     ys = []
-    with open(cout['filename']) as f:
+    with open(cout['filepath']) as f:
         x=0
-        plt.clf()
-        fig, ax = plt.subplots()
         for line in f:
             if 'AUC' in line:
                 parts = line.split()
@@ -29,7 +85,8 @@ for cout in couts:
                 y = float(parts[1])
                 xs.append(x)
                 ys.append(y)
-        ax.plot(xs, ys)
-        ax.hlines(y=cout['sota'], xmin=1, xmax=200)
-        plt.savefig(cout['filename']+".png")
+        ax.plot(xs, ys, label=cout['filename'][-30:]+cout['bs'], color=get_color(cout))
+        ax.hlines(y=sotas[int(cout['class'])], xmin=1, xmax=100)
+  ax.legend()
+  plt.savefig(str(q[0]['class'])+".png")
 
