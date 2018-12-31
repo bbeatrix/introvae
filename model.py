@@ -7,7 +7,7 @@ from keras.regularizers import l2
 
 def encoder_layers_dcgan(image_size, base_channels, bn_allowed, wd):
     layers = []
-    channels = [16, 32, 64]
+    channels = [base_channels, 2*base_channels, 4*base_channels]
     kernel = 4
     for idx, channel in enumerate(channels):
         if idx == (len(channels)-1):
@@ -29,7 +29,7 @@ def encoder_layers_dcgan(image_size, base_channels, bn_allowed, wd):
 
 def generator_layers_dcgan(image_size, base_channels, bn_allowed, wd):
     layers = []
-    channels = [64, 32, 16, 3]
+    channels = [4*base_channels, 2*base_channels, base_channels, 3]
     layers.append(Reshape((-1, 2, 2)))
     stride = 2
     kernel = 4
