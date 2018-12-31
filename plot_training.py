@@ -15,12 +15,14 @@ sotas = {
     9: 0.76
 }
 
+
+import json
 from os import listdir
 from os.path import isfile, join
 
-path = "../amazon/"
+path = "/mnt/g2big/oneclass/dcgan/"
 
-onlyfiles = [f for f in listdir(path) if isfile(join(path, f))]
+onlyfiles = [f for f in listdir(path) if isfile(join(path, f)) and f.endswith('.cout')]
 
 couts = []
 for f in onlyfiles:
@@ -30,6 +32,13 @@ for f in onlyfiles:
         parts2 = part.split('=')
         if len(parts2) == 2:
             rec[parts2[0]] = parts2[1]
+    rec['class'] = rec['normclass']
+    f = open(rec['filepath'])
+    lines = f.readlines()
+    if len(lines) == 0:
+      continue
+    print(len(lines))
+    #rec = eval(lines[0])
     couts.append(rec)
 print(couts)
 
@@ -49,17 +58,14 @@ couts = [
 """
 
 def get_color(rec):
- if int(rec['bs']) == 50:
-  if rec['lr'] == '0.0001':
+  if rec['m'] == '40':
    return 'red'
-  else:
+  elif rec['m'] == '50' and rec['bf'] == '64':
    return 'orange'
- else:
-  if rec['lr'] == '0.0001':
-   return 'cyan'
+  elif rec['m'] == '50' and rec['bf'] == '32':
+   return 'yellow'
   else:
    return 'blue'
-
 
 def byclass():
     for i in range(10):
@@ -85,7 +91,8 @@ for q in byclass():
                 y = float(parts[1])
                 xs.append(x)
                 ys.append(y)
-        ax.plot(xs, ys, label=cout['filename'][-30:]+cout['bs'], color=get_color(cout))
+        #ax.plot(xs, ys, label=( cout['lrs'] if 'lrs' in cout.keys()   else  'constant')+cout['m']+cout['bf'], color=get_color(cout))
+        ax.plot(xs, ys, label=cout['filename'], color=get_color(cout))
         ax.hlines(y=sotas[int(cout['class'])], xmin=1, xmax=100)
   ax.legend()
   plt.savefig(str(q[0]['class'])+".png")
