@@ -125,7 +125,7 @@ generator.summary()
 #
 optimizer = Optimizer("UixmeRWMTNgxw3Od6lPNjQxsI")
 params = """
-alpha real [0, 10] [0.25]
+alpha real [0, 10] [0.75]
 beta real [0, 10] [0.25]
 m real [0, 100] [40.0]
 """
@@ -134,11 +134,11 @@ optimizer.set_params(params)
 while True:
     suggestion = optimizer.get_suggestion()
     # Add the following code anywhere in your machine learning file
-    args.m = suggestion['m']
-    args.alpha = suggestion['alpha']
-    args.beta = suggestion['beta']
+    #args.m = suggestion['m']
+    #args.alpha = suggestion['alpha']
+    #args.beta = suggestion['beta']
     #args.gradreg = suggestion['gradreg']
-    experiment = Experiment(api_key="UixmeRWMTNgxw3Od6lPNjQxsI", project_name="introvae-oneclass", workspace="csadrian", log_graph=False)
+    experiment = Experiment(api_key="UixmeRWMTNgxw3Od6lPNjQxsI", project_name="introvae-oneclass-exps", workspace="csadrian", log_graph=False)
     print("Starting new experiment")
     print(args)
 

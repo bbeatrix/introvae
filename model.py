@@ -74,7 +74,7 @@ def generator_layers_dcgan(image_size, base_channels, bn_allowed, wd):
     layers = []
     channels = [4*base_channels, 2*base_channels, base_channels, base_channels, 3]
     #layers.append(Dense(4*base_channels*2*2, kernel_regularizer=l2(wd)))
-    layers.append(Reshape((-1, 2, 2)))
+    layers.append(Reshape((64, 2, 2)))
     stride = 2
     kernel = 4
     for idx, channel in enumerate(channels):
