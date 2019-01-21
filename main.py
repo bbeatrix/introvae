@@ -123,16 +123,16 @@ generator.summary()
 #
 # Define losses
 #
-optimizer = Optimizer("UixmeRWMTNgxw3Od6lPNjQxsI")
-params = """
-alpha real [0, 10] [0.75]
-beta real [0, 10] [0.25]
-m real [0, 100] [40.0]
-"""
-optimizer.set_params(params)
+#optimizer = Optimizer("UixmeRWMTNgxw3Od6lPNjQxsI")
+#params = """
+#alpha real [0, 10] [0.75]
+#beta real [0, 10] [0.25]
+#m real [0, 100] [40.0]
+#"""
+#optimizer.set_params(params)
 
 while True:
-    suggestion = optimizer.get_suggestion()
+    #suggestion = optimizer.get_suggestion()
     # Add the following code anywhere in your machine learning file
     #args.m = suggestion['m']
     #args.alpha = suggestion['alpha']
@@ -272,4 +272,4 @@ while True:
                 auc = utils.oneclass_eval(args.normal_class, "{}_{}_epoch{}_iter{}.npy".format(args.prefix, 'kldiv', epoch, global_iters), args.m)
                 experiment.log_metric('auc', auc, step=global_step_np)
     quit()
-    suggestion.report_score('auc', auc)
+    #suggestion.report_score('auc', auc)
