@@ -6,15 +6,15 @@ bs=200
 arch=dcgan
 lr=0.0005
 
-for seed in {0..0}
+for seed in {1..5}
 do
 name=okgen_dsn_lr=${lr}_seed=${seed}
 
-for alpha in 0.75
+for alpha in 1.0
 do
 for beta in 0.25
 do
-for class in {0..0}
+for class in {0..2}
 do
 for gradreg in 0.0
  do

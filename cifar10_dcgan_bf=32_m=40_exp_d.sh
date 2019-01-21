@@ -10,7 +10,7 @@ for seed in {1..5}
 do
 name=okgen_dsn_lr=${lr}_seed=${seed}
 
-for alpha in 1.0
+for alpha in 0.75
 do
 for beta in 0.25
 do

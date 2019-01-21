@@ -138,7 +138,7 @@ while True:
     #args.alpha = suggestion['alpha']
     #args.beta = suggestion['beta']
     #args.gradreg = suggestion['gradreg']
-    experiment = Experiment(api_key="UixmeRWMTNgxw3Od6lPNjQxsI", project_name="introvae-oneclass-exps", workspace="csadrian", log_graph=False)
+    experiment = Experiment(api_key="UixmeRWMTNgxw3Od6lPNjQxsI", project_name="introvae-oneclass-1", workspace="csadrian", log_graph=False)
     print("Starting new experiment")
     print(args)
 
