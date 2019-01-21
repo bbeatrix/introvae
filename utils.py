@@ -75,3 +75,4 @@ def oneclass_eval(normal_class, kldiv_file, margin):
     y_scores = margin - kldiv
     auc = roc_auc_score(y_true, y_scores)
     print('AUC: ', auc)
+    return auc

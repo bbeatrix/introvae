@@ -20,8 +20,8 @@ import json
 from os import listdir
 from os.path import isfile, join
 
-path = "/mnt/g2big/oneclass/dcgan/"
-
+#path = "/mnt/g2big/oneclass/dcgan/"
+path = "yyy"
 onlyfiles = [f for f in listdir(path) if isfile(join(path, f)) and f.endswith('.cout')]
 
 couts = []
@@ -38,6 +38,8 @@ for f in onlyfiles:
     if len(lines) == 0:
       continue
     print(len(lines))
+    if rec['alpha'] != '1.0':
+      continue
     #rec = eval(lines[0])
     couts.append(rec)
 print(couts)
@@ -67,15 +69,17 @@ def get_color(rec):
   else:
    return 'blue'
 
-def byclass():
-    for i in range(10):
+def byclass(c=None):
+    c = range(10) if c is None else [c]
+    for i in c:
         res = []
         for cout in couts:
             if int(cout['class']) == i:
                 res.append(cout)
         yield res
 
-for q in byclass():
+
+for q in byclass(3):
   plt.clf()
   fig, ax = plt.subplots()
 
@@ -92,8 +96,8 @@ for q in byclass():
                 xs.append(x)
                 ys.append(y)
         #ax.plot(xs, ys, label=( cout['lrs'] if 'lrs' in cout.keys()   else  'constant')+cout['m']+cout['bf'], color=get_color(cout))
-        ax.plot(xs, ys, label=cout['filename'], color=get_color(cout))
+        ax.plot(xs, ys, label=cout['filename']) #color=get_color(cout))
         ax.hlines(y=sotas[int(cout['class'])], xmin=1, xmax=100)
-  ax.legend()
+  ax.legend(fontsize='xx-small')
   plt.savefig(str(q[0]['class'])+".png")
 
