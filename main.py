@@ -250,8 +250,8 @@ while True:
                 print(' Dec_loss: {}, l_ae:{}, l_reg_zr: {}, l_reg_zpp: {}, lr: {}, global_step: {}'.format(generator_loss_np, dec_l_ae_np, l_reg_zr_np, l_reg_zpp_np, lr_np, global_step_np))
 
             if ((global_iters % iterations_per_epoch == 0) and args.save_latent):
-                utils.save_output(session, args.prefix, epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next}), OrderedDict({"test_mean": z_mean, "test_log_var": z_log_var}), args.test_size)
-                utils.save_output(session, args.prefix, epoch, global_iters, args.batch_size, OrderedDict({encoder_input: fixed_next}), OrderedDict({"train_mean": z_mean, "train_log_var": z_log_var}), args.latent_cloud_size)
+                #utils.save_output(session, args.prefix, epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next}), OrderedDict({"test_mean": z_mean, "test_log_var": z_log_var}), args.test_size)
+                #utils.save_output(session, args.prefix, epoch, global_iters, args.batch_size, OrderedDict({encoder_input: fixed_next}), OrderedDict({"train_mean": z_mean, "train_log_var": z_log_var}), args.latent_cloud_size)
 
                 n_x = 5
                 n_y = args.batch_size // n_x
