@@ -18,14 +18,18 @@ args = params.getArgs()
 print(args)
 
 # set random seed
-np.random.seed(10)
+np.random.seed(args.seed)
+tf.set_random_seed(args.seed)
 
 print('Keras version: ', keras.__version__)
 print('Tensorflow version: ', tf.__version__)
 from keras.backend.tensorflow_backend import set_session
 config = tf.ConfigProto()
-config.gpu_options.per_process_gpu_memory_fraction = args.memory_share
-set_session(tf.Session(config=config))
+config.gpu_options.allow_growth = True
+#config.gpu_options.per_process_gpu_memory_fraction = args.memory_share
+sess = tf.Session(config=config)
+set_session(sess)
+
 
 #
 # Datasets
@@ -38,12 +42,19 @@ data_path = os.path.join(args.datasets_dir, args.dataset)
 iterations = args.nb_epoch * args.train_size // args.batch_size
 iterations_per_epoch = args.train_size // args.batch_size
 
-train_dataset, train_iterator, train_iterator_init_op, train_next \
-     = data.create_dataset(os.path.join(data_path, "train/*.npy"), args.batch_size, args.train_size)
-test_dataset, test_iterator, test_iterator_init_op, test_next \
-     = data.create_dataset(os.path.join(data_path, "test/*.npy"), args.batch_size, args.test_size)
-fixed_dataset, fixed_iterator, fixed_iterator_init_op, fixed_next \
-     = data.create_dataset(os.path.join(data_path, "train/*.npy"), args.batch_size, args.latent_cloud_size)
+
+if args.dataset == 'dsprites':
+    ds = data.create_dsprites_datasets(args.batch_size, args.train_size, args.test_size, args.latent_cloud_size)
+    train_dataset, train_iterator, train_iterator_init_op, train_next = ds[0]
+    test_dataset, test_iterator, test_iterator_init_op, test_next = ds[1]
+    fixed_dataset, fixed_iterator, fixed_iterator_init_op, fixed_next = ds[2]
+else:
+    train_dataset, train_iterator, train_iterator_init_op, train_next \
+         = data.create_dataset(os.path.join(data_path, "train/*.npy"), args.batch_size, args.train_size)
+    test_dataset, test_iterator, test_iterator_init_op, test_next \
+         = data.create_dataset(os.path.join(data_path, "test/*.npy"), args.batch_size, args.test_size)
+    fixed_dataset, fixed_iterator, fixed_iterator_init_op, fixed_next \
+         = data.create_dataset(os.path.join(data_path, "train/*.npy"), args.batch_size, args.latent_cloud_size)
 
 args.n_channels = 3 if args.color else 1
 args.original_shape = (args.n_channels, ) + args.shape
@@ -52,8 +63,15 @@ args.original_shape = (args.n_channels, ) + args.shape
 # Build networks
 #
 
-encoder_layers = model.encoder_layers_introvae(args.shape, args.base_filter_num, args.encoder_use_bn)
-generator_layers = model.generator_layers_introvae(args.shape, args.base_filter_num, args.generator_use_bn)
+if args.model_architecture == 'deepsvdd':
+    encoder_layers = model.encoder_layers_deepsvdd(args.shape, args.base_filter_num, args.encoder_use_bn)
+    generator_layers = model.generator_layers_deepsvdd(args.shape, args.base_filter_num, args.generator_use_bn)
+elif args.model_architecture == 'dcgan':
+    encoder_layers = model.encoder_layers_dcgan(args.shape, args.base_filter_num, args.encoder_use_bn, args.encoder_wd)
+    generator_layers = model.generator_layers_dcgan(args.shape, args.base_filter_num, args.encoder_use_bn, args.generator_wd)
+else:
+    encoder_layers = model.encoder_layers_introvae(args.shape, args.base_filter_num, args.encoder_use_bn)
+    generator_layers = model.generator_layers_introvae(args.shape, args.base_filter_num, args.generator_use_bn)
 
 encoder_input = Input(batch_shape=[args.batch_size] + list(args.original_shape), name='encoder_input')
 generator_input = Input(batch_shape=(args.batch_size, args.latent_dim), name='generator_input')
@@ -116,10 +134,10 @@ generator_loss = generator_l_adv + args.beta * l_ae2
 encoder_params = encoder.trainable_weights
 generator_params = generator.trainable_weights
 
-encoder_grads = encoder_optimizer.compute_gradients(encoder_loss, var_list=encoder_params)
+encoder_grads = encoder_optimizer.compute_gradients(encoder_loss)#, var_list=encoder_params)
 encoder_apply_grads_op = encoder_optimizer.apply_gradients(encoder_grads)
 
-generator_grads = generator_optimizer.compute_gradients(generator_loss, var_list=generator_params)
+generator_grads = generator_optimizer.compute_gradients(generator_loss)#, var_list=generator_params)
 generator_apply_grads_op = generator_optimizer.apply_gradients(generator_grads)
 
 for v in encoder_params:
@@ -136,7 +154,7 @@ print('Start session')
 global_iters = 0
 start_epoch = 0
 
-with tf.Session() as session:
+with sess as session:
     init = tf.global_variables_initializer()
     session.run([init, train_iterator_init_op, test_iterator_init_op, fixed_iterator_init_op])
 
@@ -159,7 +177,7 @@ with tf.Session() as session:
         z_x, x_r, x_p = session.run([z, xr, generator_output], feed_dict={encoder_input: x, generator_input: z_p})
 
         _ = session.run([encoder_apply_grads_op], feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p})
-        _ = session.run([generator_apply_grads_op], feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p})
+        #_ = session.run([generator_apply_grads_op], feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p})
 
         if global_iters % 10 == 0:
             summary, = session.run([summary_op], feed_dict={encoder_input: x})

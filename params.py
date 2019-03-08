@@ -20,6 +20,8 @@ parser.add_argument('--test_size', dest="test_size", type=int, default=1000, hel
 parser.add_argument('--shape', dest="shape", default="128,128", help="Image shape.")
 
 # model hyperparameters
+parser.add_argument('--model_architecture', dest="model_architecture", default="dcgan", type=str, help="Model arch.")
+
 parser.add_argument('--m', dest="m", type=int, default=120, help="Value of model hyperparameter m.")
 parser.add_argument('--alpha', dest="alpha", type=float, default=0.25, help="Value of model hyperparameter alpha.")
 parser.add_argument('--beta', dest="beta", type=float, default=0.05, help="Value of model hyperparameter beta.")
@@ -50,6 +52,7 @@ parser.add_argument('--prefix', dest="prefix", default="trash", help="File prefi
 parser.add_argument('--model_path', dest="model_path", default=None, help="Path to saved networks. If None, build networks from scratch.")
 
 # micellaneous
+parser.add_argument('--seed', dest="seed", default=1, help="Seed.")
 parser.add_argument('--memory_share', dest="memory_share", type=float, default=0.95, help="Fraction of memory that can be allocated to this process.")
 parser.add_argument('--frequency', dest="frequency", type=int, default=20, help="Image saving frequency.")
 parser.add_argument('--save_latent', dest="save_latent", type=str2bool, default=False, help="If True, then save latent pointcloud.")
