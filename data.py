@@ -2,6 +2,7 @@ import tensorflow as tf
 import numpy as np
 from tensorflow.keras.datasets import cifar10
 from tensorflow.keras import backend as K
+from keras.preprocessing.image import ImageDataGenerator
 
 K.set_image_data_format('channels_first')
 
@@ -38,9 +39,14 @@ def create_dataset_from_ndarray(x, batch_size, limit):
     return (x, x_placeholder, dataset, iterator, iterator_init_op, get_next)
 
 
-def create_cifar10_unsup_dataset(batch_size, train_limit, test_limit, fixed_limit, normal_class, gcnorm):
+def create_cifar10_unsup_dataset(batch_size, train_limit, test_limit, fixed_limit, normal_class, gcnorm, augment):
     (x_train, y_train), (x_test, y_test) = cifar10.load_data()
     print(x_train.shape)
+    if augment:
+        datagen = ImageDatagenerator(rotation_range=10, width_shift_range=0.1, height_shift_range=0.1, zoom_range=0.1)
+        datagen.fit(x_train)
+        x_train = datagen.flow(x_train, y=None, batch_size=batch_size)
+        print('Using real-time data augmentation.')
     if gcnorm == "std":
         x_train_mean = np.mean(x_train, axis=(1, 2, 3), keepdims=True)
         x_test_mean = np.mean(x_test, axis=(1, 2, 3), keepdims=True)

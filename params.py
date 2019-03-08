@@ -19,6 +19,7 @@ parser.add_argument('--train_size', dest="train_size", type=int, default=29000, 
 parser.add_argument('--test_size', dest="test_size", type=int, default=1000, help="Test set size.")
 parser.add_argument('--shape', dest="shape", default="128,128", help="Image shape.")
 parser.add_argument('--normal_class', dest="normal_class", type=int, default="-1", help="Normal class for oneclass classification (0-9, -1 means all classes)")
+parser.add_argument('--augment', dest='augment', default=False, type=str2bool, help="Use dataset augmentation (True/False)")
 
 # model hyperparameters
 parser.add_argument('--m', dest="m", type=int, default=120, help="Value of model hyperparameter m.")
