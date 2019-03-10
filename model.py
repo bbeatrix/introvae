@@ -64,7 +64,7 @@ def encoder_layers_dcgan(image_size, base_channels, bn_allowed, wd):
         layers.append(Conv2D(channel, (kernel, kernel), strides=(stride, stride), padding=border_mode, use_bias=False, kernel_regularizer=l2(wd)))
         if use_bn:
             layers.append(BatchNormalization(axis=1))
-        
+
         if idx == (len(channels)-1):
             layers.append(Activation(activation, name="encoder_{}".format(idx)))
         else:
@@ -87,16 +87,16 @@ def generator_layers_dcgan(image_size, base_channels, bn_allowed, wd):
         else:
             border_mode = "same"
         if idx == (len(channels)-1):
-            activation = "sigmoid"
+            activation = "linear"
             use_bn = False
         else:
             activation="relu"
             use_bn = bn_allowed
-            layers.append(Conv2DTranspose(channel, (kernel, kernel), use_bias=False, strides=(2, 2), padding='same', data_format='channels_first', kernel_regularizer=l2(wd)))
+            #layers.append(Conv2DTranspose(channel, (kernel, kernel), use_bias=False, strides=(2, 2), padding='same', data_format='channels_first', kernel_regularizer=l2(wd)))
             #layers.append(UpSampling2D(size=(2, 2), data_format='channels_first', interpolation='bilinear'))
 
-        #layers.append(Conv2D(channel, (kernel, kernel), use_bias=False, strides=(1, 1), padding=border_mode, data_format='channels_first', kernel_regularizer=l2(wd)))
-        #layers.append(UpSampling2D(size=(2, 2), data_format='channels_first', interpolation='bilinear'))
+            layers.append(Conv2D(channel, (kernel, kernel), use_bias=False, strides=(1, 1), padding=border_mode, data_format='channels_first', kernel_regularizer=l2(wd)))
+            layers.append(UpSampling2D(size=(2, 2), data_format='channels_first', interpolation='bilinear'))
         """
         with tf.variable_scope("decfoo"+str(idx), reuse=tf.AUTO_REUSE):
           w = tf.get_variable("deckernel"+str(idx), shape=[kernel, kernel, channels[idx-1] if idx > 0 else 64, channel])
@@ -113,8 +113,10 @@ def generator_layers_dcgan(image_size, base_channels, bn_allowed, wd):
         if use_bn:
             layers.append(BatchNormalization(axis=1))
         #layers.append(Activation(activation, name="generator_{}".format(idx)))
-        if idx == (len(channels)-1):       
+        if idx == (len(channels)-1):
             layers.append(Activation(activation, name="generator_{}".format(idx)))
+            if activation == "linear":
+                layers.append(Lambda(lambda x: tf.clip_by_value(x, 0.0, 1.0)))
         else:
             layers.append(LeakyReLU(alpha=0.2))
     return layers
