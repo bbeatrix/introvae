@@ -1,7 +1,7 @@
 import numpy as np
 from PIL import Image
 from sklearn.metrics import roc_auc_score
-from tensorflow.keras.datasets import cifar10
+from keras.datasets import cifar10
 
 
 def plot_images(data, n_x, n_y, name, text=None):
@@ -69,9 +69,12 @@ def save_kldiv(session, prefix, epoch, global_iters, batch_size, input, output, 
     np.save(filename, kldiv)
 
 def oneclass_eval(normal_class, kldiv_file, margin):
-    (x_train, y_train), (x_test, y_test) = cifar10.load_data()
-    y_true = [1 if item == normal_class else 0 for item in y_test]
-    kldiv = np.load(kldiv_file)
-    y_scores = margin - kldiv
-    auc = roc_auc_score(y_true, y_scores)
-    print('AUC: ', auc)
+    if normal_class == -1:
+        pass
+    else:
+        (x_train, y_train), (x_test, y_test) = cifar10.load_data()
+        y_true = [1 if item == normal_class else 0 for item in y_test]
+        kldiv = np.load(kldiv_file)
+        y_scores = margin - kldiv
+        auc = roc_auc_score(y_true, y_scores)
+        print('AUC: ', auc)

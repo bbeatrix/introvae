@@ -1,14 +1,31 @@
 import tensorflow as tf
 import numpy as np
-from tensorflow.keras.datasets import cifar10
+from keras.datasets import cifar10
 from tensorflow.keras import backend as K
 from keras.preprocessing.image import ImageDataGenerator
+import tensorflow_datasets as tfds
 
 K.set_image_data_format('channels_first')
 
 def read_npy_file(item):
     data = np.transpose(np.load(item.decode()), (0,3,1,2))[0,:,:,:]
     return data.astype(np.float32)
+
+def create_svhn_test_dataset(batch_size):
+    test_dataset = tfds.load("svhn_cropped", split=tfds.Split.TEST)
+    dataset = test_dataset \
+        .take((26032 // batch_size) * batch_size) \
+        .map(lambda x: x['image']) \
+        .map(lambda x: tf.transpose(x, [2, 0, 1])) \
+        .map(lambda x: tf.cast(x, tf.float32)) \
+        .map(lambda x: x / 255.) \
+        .batch(batch_size) \
+        .repeat() \
+        .prefetch(2)
+    iterator = dataset.make_initializable_iterator()
+    iterator_init_op = iterator.initializer
+    get_next = iterator.get_next()
+    return (dataset, iterator, iterator_init_op, get_next)
 
 
 def create_dataset(path, batch_size, limit):

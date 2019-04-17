@@ -25,7 +25,8 @@ print('Keras version: ', keras.__version__)
 print('Tensorflow version: ', tf.__version__)
 from keras.backend.tensorflow_backend import set_session
 config = tf.ConfigProto()
-config.gpu_options.per_process_gpu_memory_fraction = args.memory_share
+# config.gpu_options.per_process_gpu_memory_fraction = args.memory_share
+config.gpu_options.allow_growth = True
 set_session(tf.Session(config=config))
 
 #
@@ -44,6 +45,7 @@ if args.dataset == 'cifar10':
     train_data, train_placeholder, train_dataset, train_iterator, train_iterator_init_op, train_next = ds[0]
     test_data, test_placeholder, test_dataset, test_iterator, test_iterator_init_op, test_next = ds[1]
     fixed_data, fixed_placeholder, fixed_dataset, fixed_iterator, fixed_iterator_init_op, fixed_next = ds[2]
+    svhn_test_data, svhn_test_iterator, svhn_test_iterator_init_op, svhn_test_next = data.create_svhn_test_dataset(args.batch_size)
 else:
     train_dataset, train_iterator, train_iterator_init_op, train_next \
          = data.create_dataset(os.path.join(data_path, "train/*.npy"), args.batch_size, args.train_size)
@@ -119,9 +121,10 @@ l_reg_z = losses.reg_loss(z_mean, z_log_var)
 l_reg_zr_ng = losses.reg_loss(zr_mean_ng, zr_log_var_ng)
 l_reg_zpp_ng = losses.reg_loss(zpp_mean_ng, zpp_log_var_ng)
 
+reconst_loss = keras.objectives.mean_squared_error(encoder_input, xr)
+
 l_ae = losses.mse_loss(encoder_input, xr, args.original_shape)
 l_ae2 = losses.mse_loss(encoder_input, xr_latent, args.original_shape)
-
 
 z_mean_gradients = tf.gradients(z_mean * tf.random_normal((args.latent_dim,)), [encoder_input])[0]
 z_log_var_gradients = tf.gradients(z_log_var * tf.random_normal((args.latent_dim,)), [encoder_input])[0]
@@ -170,7 +173,7 @@ start_epoch = 0
 
 with tf.Session() as session:
     init = tf.global_variables_initializer()
-    session.run([init, train_iterator_init_op, test_iterator_init_op, fixed_iterator_init_op],
+    session.run([init, train_iterator_init_op, test_iterator_init_op, fixed_iterator_init_op, svhn_test_iterator_init_op],
                 feed_dict={train_placeholder: train_data, test_placeholder: test_data, fixed_placeholder: fixed_data})
     summary_writer = tf.summary.FileWriter(args.prefix+"/", graph=tf.get_default_graph())
     saver = tf.train.Saver(max_to_keep=None)
@@ -183,7 +186,8 @@ with tf.Session() as session:
     print('Global iters: ', global_iters)
 
     if args.oneclass_eval:
-        utils.save_kldiv(session, args.prefix, start_epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next}), OrderedDict({"mean": z_mean, "log_var": z_log_var}), args.test_size)
+        utils.save_kldiv(session, args.prefix + "_cifar10", start_epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next}), OrderedDict({"mean": z_mean, "log_var": z_log_var}), args.test_size)
+        utils.save_kldiv(session, args.prefix + "_svhn", start_epoch, global_iters, args.batch_size, OrderedDict({encoder_input: svhn_test_next}), OrderedDict({"mean": z_mean, "log_var": z_log_var}), 26032)
         utils.oneclass_eval(args.normal_class, "{}_{}_epoch{}_iter{}.npy".format(args.prefix, 'kldiv', start_epoch, global_iters), args.m)
 
     for iteration in range(iterations):
@@ -210,8 +214,9 @@ with tf.Session() as session:
             print(' Dec_loss: {}, l_ae:{}, l_reg_zr: {}, l_reg_zpp: {}, lr={}'.format(generator_loss_np, dec_l_ae_np, l_reg_zr_np, l_reg_zpp_np, lr_np))
 
         if ((global_iters % iterations_per_epoch == 0) and args.save_latent):
-            utils.save_output(session, args.prefix, epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next}), OrderedDict({"test_mean": z_mean, "test_log_var": z_log_var}), args.test_size)
-            utils.save_output(session, args.prefix, epoch, global_iters, args.batch_size, OrderedDict({encoder_input: fixed_next}), OrderedDict({"train_mean": z_mean, "train_log_var": z_log_var}), args.latent_cloud_size)
+            utils.save_output(session, args.prefix + '_cifar10', epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next}), OrderedDict({"test_mean": z_mean, "test_log_var": z_log_var, "test_reconstloss": reconst_loss}), args.test_size)
+            utils.save_output(session, args.prefix + '_cifar10', epoch, global_iters, args.batch_size, OrderedDict({encoder_input: fixed_next}), OrderedDict({"train_mean": z_mean, "train_log_var": z_log_var}), args.latent_cloud_size)
+            utils.save_output(session, args.prefix + '_svhn', epoch, global_iters, args.batch_size, OrderedDict({encoder_input: svhn_test_next}), OrderedDict({"test_mean": z_mean, "test_log_var": z_log_var, "test_reconstloss": reconst_loss}), 26032)
 
             n_x = 5
             n_y = args.batch_size // n_x
@@ -228,5 +233,6 @@ with tf.Session() as session:
                 print('Saved model to ' + saved)
 
         if ((global_iters % iterations_per_epoch == 0) and args.oneclass_eval):
-            utils.save_kldiv(session, args.prefix, epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next}), OrderedDict({"mean": z_mean, "log_var": z_log_var}), args.test_size)
+            utils.save_kldiv(session, args.prefix + "_cifar10", epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next}), OrderedDict({"mean": z_mean, "log_var": z_log_var}), args.test_size)
+            utils.save_kldiv(session, args.prefix + "_svhn", epoch, global_iters, args.batch_size, OrderedDict({encoder_input: svhn_test_next}), OrderedDict({"mean": z_mean, "log_var": z_log_var}), 26032)
             utils.oneclass_eval(args.normal_class, "{}_{}_epoch{}_iter{}.npy".format(args.prefix, 'kldiv', epoch, global_iters), args.m)
