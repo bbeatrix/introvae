@@ -121,7 +121,7 @@ l_reg_z = losses.reg_loss(z_mean, z_log_var)
 l_reg_zr_ng = losses.reg_loss(zr_mean_ng, zr_log_var_ng)
 l_reg_zpp_ng = losses.reg_loss(zpp_mean_ng, zpp_log_var_ng)
 
-reconst_loss = keras.objectives.mean_squared_error(encoder_input, xr)
+reconst_loss = K.mean(keras.objectives.mean_squared_error(encoder_input, xr), axis=(1,2))
 
 l_ae = losses.mse_loss(encoder_input, xr, args.original_shape)
 l_ae2 = losses.mse_loss(encoder_input, xr_latent, args.original_shape)
