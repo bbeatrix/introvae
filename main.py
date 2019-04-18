@@ -244,8 +244,9 @@ with tf.Session() as session:
             utils.save_output(session, args.prefix + '_cifar10', epoch, global_iters, args.batch_size, OrderedDict({encoder_input: fixed_next}), OrderedDict({"train_mean": z_mean, "train_log_var": z_log_var}), args.latent_cloud_size)
             utils.save_output(session, args.prefix + '_svhn', epoch, global_iters, args.batch_size, OrderedDict({encoder_input: svhn_test_next}), OrderedDict({"test_mean": z_mean, "test_log_var": z_log_var, "test_reconstloss": reconst_loss}), 26032)
 
+        if ((global_iters % iterations_per_epoch == 0) and args.save_latent) and ((epoch + 1) % 10 == 0)):
             n_x = 5
-            n_y = args.batch_size // n_x
+            n_y = min(args.batch_size // n_x, 50)
             print('Save original images.')
             orig_img = utils.plot_images(np.transpose(x, (0, 2, 3, 1)), n_x, n_y, "{}_original_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
             print('Save generated images.')
@@ -267,7 +268,7 @@ with tf.Session() as session:
             kl_svhn = utils.save_kldiv(session, args.prefix + "_svhn", epoch, global_iters, args.batch_size, OrderedDict({encoder_input: svhn_test_next}), OrderedDict({"mean": z_mean, "log_var": z_log_var}), args.test_size) #26032)
             utils.oneclass_eval(args.normal_class, "{}_{}_epoch{}_iter{}.npy".format(args.prefix, 'kldiv', epoch, global_iters), args.m)
 
-            auc = roc_auc_score(np.concatenate(np.zeros_like(kl_cifar10), np.ones_like(kl_cifar10)), np.concatenate(kl_cifar10, kl_svhn))
+            auc = roc_auc_score(np.concatenate([np.zeros_like(kl_cifar10), np.ones_like(kl_cifar10)]), np.concatenate([kl_cifar10, kl_svhn]))
 
             neptune.send_metric('auc_cifar10_vs_svhn', x=global_iters, y=auc)
 
