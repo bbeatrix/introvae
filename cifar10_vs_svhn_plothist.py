@@ -34,15 +34,17 @@ def plothist(plot_type='kldiv', prefix='cifar10_vs_svhn', epoch_range=range(0,21
             plt.legend(loc='upper right')
             plt.title('{} epoch_{}'.format(plot_type, epoch), loc='center')
 
-            plt.savefig('{}/cifarvssvhn_{}_epoch{}.png'.format(save_dir, plot_type, epoch))
-            print('Saved hist to cifarvssvhn_{}_epoch{}.png'.format(plot_type, epoch))
+            plt.savefig('{}/{}_{}_epoch{}.png'.format(save_dir, prefix, plot_type, epoch))
+            print('Saved hist to {}_{}_epoch{}.png'.format(prefix, plot_type, epoch))
             plt.clf()
 
 
 if __name__ == "__main__":
-    plothist('kldiv', 'cifar10_vs_svhn_m=40_alpha=0.25', range(0,21,1), [0, 100])
-    plothist('kldiv', 'cifar10_vs_svhn_m=40_alpha=0.25', range(9,199,10), [0, 100])
-    plothist('test_mean', 'cifar10_vs_svhn_m=40_alpha=0.25', range(0,21,1), [-1, 1])
-    plothist('test_mean', 'cifar10_vs_svhn_m=40_alpha=0.25', range(9,199,10), [-1, 1])
-    plothist('test_reconstloss', 'cifar10_vs_svhn_m=40_alpha=0.25', range(0,21,1), [0, 200])
-    plothist('test_reconstloss', 'cifar10_vs_svhn_m=40_alpha=0.25', range(9,199,10), [0, 200])
+    #for alpha in ['0.0', '0.1', '0.25', '0.5', '0.75', '1.0']:
+    for alpha in ['0.25']:
+      plothist('kldiv', 'cifar10_vs_svhn_2xwide_withnoise_m=30_alpha='+alpha, range(0,21,1), [0, 100])
+      plothist('kldiv', 'cifar10_vs_svhn_2xwide_withnoise_m=30_alpha='+alpha, range(9,199,10), [0, 100])
+      plothist('test_mean', 'cifar10_vs_svhn_2xwide_withnoise_m=30_alpha='+alpha, range(0,21,1), [-1, 1])
+      plothist('test_mean', 'cifar10_vs_svhn_2xwide_withnoise_m=30_alpha='+alpha, range(9,199,10), [-1, 1])
+      plothist('test_reconstloss', 'cifar10_vs_svhn_2xwide_withnoise_m=30_alpha='+alpha, range(0,21,1), [0, 200])
+      plothist('test_reconstloss', 'cifar10_vs_svhn_2xwide_withnoise_m=30_alpha='+alpha, range(9,199,10), [0, 200])
