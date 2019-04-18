@@ -95,14 +95,19 @@ def create_cifar10_unsup_dataset(batch_size, train_limit, test_limit, fixed_limi
 
 
 def get_dataset(dataset, split, batch_size, limit):
-
-    ds = tfds.load(name=dataset, split=split)
+    ds = tfds.load(name=dataset, split=split) \
         .take((limit // batch_size) * batch_size) \
+        .map(lambda x: x['image']) \
+        .map(lambda x: tf.transpose(x, [2, 0, 1])) \
+        .map(lambda x: tf.cast(x, tf.float32)) \
         .map(lambda x: x / 255.) \
         .batch(batch_size) \
         .repeat() \
         .prefetch(2)
-    return ds
+    iterator = ds.make_initializable_iterator()
+    iterator_init_op = iterator.initializer
+    get_next = iterator.get_next()
+    return ds, iterator, iterator_init_op, get_next
 
 
 

@@ -21,7 +21,7 @@ parser.add_argument('--shape', dest="shape", default="128,128", help="Image shap
 parser.add_argument('--normal_class', dest="normal_class", type=int, default="-1", help="Normal class for oneclass classification (0-9, -1 means all classes)")
 parser.add_argument('--augment', dest='augment', default=False, type=str2bool, help="Use dataset augmentation (True/False)")
 parser.add_argument('--test_dataset_a', dest='test_dataset_a', default='cifar10', type=str, help="Test dataset a - for comparison on different test datasets")
-parser.add_argument('--test_dataset_b', dest='test_dataset_b', default='svhn', type=str, help="Test dataset b - for comparison on different test datasets")
+parser.add_argument('--test_dataset_b', dest='test_dataset_b', default='svhn_cropped', type=str, help="Test dataset b - for comparison on different test datasets")
 
 # model hyperparameters
 parser.add_argument('--m', dest="m", type=int, default=120, help="Value of model hyperparameter m.")

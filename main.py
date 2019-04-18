@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+import tensorflow_datasets as tfds
 import keras, keras.backend as K
 
 from keras.layers import Input
@@ -47,19 +48,23 @@ data_path = os.path.join(args.datasets_dir, args.dataset)
 iterations = args.nb_epoch * args.train_size // args.batch_size
 iterations_per_epoch = args.train_size // args.batch_size
 
-if args.dataset == 'cifar10':
-    ds = data.create_cifar10_unsup_dataset(args.batch_size, args.train_size, args.test_size, args.latent_cloud_size, args.normal_class, args.gcnorm, args.augment)
-    train_data, train_placeholder, train_dataset, train_iterator, train_iterator_init_op, train_next = ds[0]
-    test_data, test_placeholder, test_dataset, test_iterator, test_iterator_init_op, test_next = ds[1]
-    fixed_data, fixed_placeholder, fixed_dataset, fixed_iterator, fixed_iterator_init_op, fixed_next = ds[2]
-    svhn_test_data, svhn_test_iterator, svhn_test_iterator_init_op, svhn_test_next = data.create_svhn_test_dataset(args.batch_size)
-else:
-    train_dataset, train_iterator, train_iterator_init_op, train_next \
-         = data.create_dataset(os.path.join(data_path, "train/*.npy"), args.batch_size, args.train_size)
-    test_dataset, test_iterator, test_iterator_init_op, test_next \
-         = data.create_dataset(os.path.join(data_path, "test/*.npy"), args.batch_size, args.test_size)
-    fixed_dataset, fixed_iterator, fixed_iterator_init_op, fixed_next \
-         = data.create_dataset(os.path.join(data_path, "train/*.npy"), args.batch_size, args.latent_cloud_size)
+#if args.dataset == 'cifar10':
+#    ds = data.create_cifar10_unsup_dataset(args.batch_size, args.train_size, args.test_size, args.latent_cloud_size, args.normal_class, args.gcnorm, args.augment)
+#    train_data, train_placeholder, train_dataset, train_iterator, train_iterator_init_op, train_next = ds[0]
+#    test_data, test_placeholder, test_dataset, test_iterator, test_iterator_init_op, test_next = ds[1]
+#    fixed_data, fixed_placeholder, fixed_dataset, fixed_iterator, fixed_iterator_init_op, fixed_next = ds[2]
+#else:
+#    train_dataset, train_iterator, train_iterator_init_op, train_next \
+#         = data.create_dataset(os.path.join(data_path, "train/*.npy"), args.batch_size, args.train_size)
+#    test_dataset, test_iterator, test_iterator_init_op, test_next \
+#         = data.create_dataset(os.path.join(data_path, "test/*.npy"), args.batch_size, args.test_size)
+#    fixed_dataset, fixed_iterator, fixed_iterator_init_op, fixed_next \
+#         = data.create_dataset(os.path.join(data_path, "train/*.npy"), args.batch_size, args.latent_cloud_size)
+
+train_data, train_iterator, train_iterator_init_op, train_next = data.get_dataset(args.dataset, tfds.Split.TRAIN, args.batch_size, args.train_size)
+fixed_data, fixed_iterator, fixed_iterator_init_op, fixed_next = data.get_dataset(args.dataset, tfds.Split.TRAIN, args.batch_size, args.latent_cloud_size)
+test_data_a, test_iterator_a, test_iterator_init_op_a, test_next_a = data.get_dataset(args.test_dataset_a, tfds.Split.TEST, args.batch_size, args.test_size)
+test_data_b, test_iterator_b, test_iterator_init_op_b, test_next_b = data.get_dataset(args.test_dataset_b, tfds.Split.TEST, args.batch_size, args.test_size)
 
 args.n_channels = 3 if args.color else 1
 args.original_shape = (args.n_channels, ) + args.shape
@@ -188,8 +193,7 @@ start_epoch = 0
 
 with tf.Session() as session:
     init = tf.global_variables_initializer()
-    session.run([init, train_iterator_init_op, test_iterator_init_op, fixed_iterator_init_op, svhn_test_iterator_init_op],
-                feed_dict={train_placeholder: train_data, test_placeholder: test_data, fixed_placeholder: fixed_data})
+    session.run([init, train_iterator_init_op, test_iterator_init_op_a, test_iterator_init_op_b, fixed_iterator_init_op])
     summary_writer = tf.summary.FileWriter(args.prefix+"/", graph=tf.get_default_graph())
     saver = tf.train.Saver(max_to_keep=None)
     if args.model_path is not None and tf.train.checkpoint_exists(args.model_path):
@@ -201,8 +205,8 @@ with tf.Session() as session:
     print('Global iters: ', global_iters)
 
     if args.oneclass_eval:
-        utils.save_kldiv(session, args.prefix + "_cifar10", start_epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next}), OrderedDict({"mean": z_mean, "log_var": z_log_var}), args.test_size)
-        utils.save_kldiv(session, args.prefix + "_svhn", start_epoch, global_iters, args.batch_size, OrderedDict({encoder_input: svhn_test_next}), OrderedDict({"mean": z_mean, "log_var": z_log_var}), 26032)
+        utils.save_kldiv(session, '_'.join([args.prefix, args.test_dataset_a]), start_epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next_a}), OrderedDict({"mean": z_mean, "log_var": z_log_var}), args.test_size)
+        utils.save_kldiv(session, '_'.join([args.prefix, args.test_dataset_b]), start_epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next_b}), OrderedDict({"mean": z_mean, "log_var": z_log_var}), args.test_size)
         utils.oneclass_eval(args.normal_class, "{}_{}_epoch{}_iter{}.npy".format(args.prefix, 'kldiv', start_epoch, global_iters), args.m)
 
     for iteration in range(iterations):
@@ -240,11 +244,11 @@ with tf.Session() as session:
             print(' Dec_loss: {}, l_ae:{}, l_reg_zr: {}, l_reg_zpp: {}, lr={}'.format(generator_loss_np, dec_l_ae_np, l_reg_zr_np, l_reg_zpp_np, lr_np))
 
         if ((global_iters % iterations_per_epoch == 0) and args.save_latent):
-            utils.save_output(session, args.prefix + '_cifar10', epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next}), OrderedDict({"test_mean": z_mean, "test_log_var": z_log_var, "test_reconstloss": reconst_loss}), args.test_size)
-            utils.save_output(session, args.prefix + '_cifar10', epoch, global_iters, args.batch_size, OrderedDict({encoder_input: fixed_next}), OrderedDict({"train_mean": z_mean, "train_log_var": z_log_var}), args.latent_cloud_size)
-            utils.save_output(session, args.prefix + '_svhn', epoch, global_iters, args.batch_size, OrderedDict({encoder_input: svhn_test_next}), OrderedDict({"test_mean": z_mean, "test_log_var": z_log_var, "test_reconstloss": reconst_loss}), 26032)
+            utils.save_output(session, '_'.join([args.prefix, args.dataset]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: fixed_next}), OrderedDict({"train_mean": z_mean, "train_log_var": z_log_var}), args.latent_cloud_size)
+            utils.save_output(session, '_'.join([args.prefix, args.test_dataset_a]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next_a}), OrderedDict({"test_mean": z_mean, "test_log_var": z_log_var, "test_reconstloss": reconst_loss}), args.test_size)
+            utils.save_output(session, '_'.join([args.prefix, args.test_dataset_b]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next_b}), OrderedDict({"test_mean": z_mean, "test_log_var": z_log_var, "test_reconstloss": reconst_loss}), args.test_size)
 
-        if ((global_iters % iterations_per_epoch == 0) and args.save_latent) and ((epoch + 1) % 10 == 0)):
+        if ((global_iters % iterations_per_epoch == 0) and args.save_latent and (epoch + 1) % 10 == 0):
             n_x = 5
             n_y = min(args.batch_size // n_x, 50)
             print('Save original images.')
@@ -264,12 +268,18 @@ with tf.Session() as session:
                 print('Saved model to ' + saved)
 
         if ((global_iters % iterations_per_epoch == 0) and args.oneclass_eval):
-            kl_cifar10 = utils.save_kldiv(session, args.prefix + "_cifar10", epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next}), OrderedDict({"mean": z_mean, "log_var": z_log_var}), args.test_size)
-            kl_svhn = utils.save_kldiv(session, args.prefix + "_svhn", epoch, global_iters, args.batch_size, OrderedDict({encoder_input: svhn_test_next}), OrderedDict({"mean": z_mean, "log_var": z_log_var}), args.test_size) #26032)
+            kl_a = utils.save_kldiv(session, '_'.join([args.prefix, args.test_dataset_a]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next_a}), OrderedDict({"mean": z_mean, "log_var": z_log_var}), args.test_size)
+            kl_b = utils.save_kldiv(session, '_'.join([args.prefix, args.test_dataset_b]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next_b}), OrderedDict({"mean": z_mean, "log_var": z_log_var}), args.test_size)
             utils.oneclass_eval(args.normal_class, "{}_{}_epoch{}_iter{}.npy".format(args.prefix, 'kldiv', epoch, global_iters), args.m)
 
-            auc = roc_auc_score(np.concatenate([np.zeros_like(kl_cifar10), np.ones_like(kl_cifar10)]), np.concatenate([kl_cifar10, kl_svhn]))
+            auc_kl = roc_auc_score(np.concatenate([np.zeros_like(kl_a), np.ones_like(kl_b)]), np.concatenate([kl_a, kl_b]))
+            # auc_rec = roc_auc_score(np.concatenate([np.zeros_like(kl_cifar10), np.ones_like(kl_cifar10)]), np.concatenate([kl_cifar10, kl_svhn]))
+            # auc_mean = roc_auc_score(np.concatenate([np.zeros_like(kl_cifar10), np.ones_like(kl_cifar10)]), np.concatenate([kl_cifar10, kl_svhn]))
+            # auc_var = 
+            # auc_l1_mean = 
+            # auc_l1_var = 
 
-            neptune.send_metric('auc_cifar10_vs_svhn', x=global_iters, y=auc)
+            neptune.send_metric('auc_{}_vs_{}'.format(args.test_dataset_a, args.test_dataset_b), x=global_iters, y=auc_kl)
+            neptune.send_metric('auc', x=global_iters, y=auc_kl)
 
 neptune.stop()
