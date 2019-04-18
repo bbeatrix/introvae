@@ -31,6 +31,7 @@ def plot_images(data, n_x, n_y, name, text=None):
         img.text(10, 10, text)
 
     img.save(fileName)
+    return img
 
 
 def save_output(session, prefix, epoch, global_iters, batch_size, input, output, limit):
@@ -67,6 +68,7 @@ def save_kldiv(session, prefix, epoch, global_iters, batch_size, input, output, 
     filename = "{}_{}_epoch{}_iter{}.npy".format(prefix, 'kldiv', epoch, global_iters)
     print("Saving kldiv to {}".format(filename))
     np.save(filename, kldiv)
+    return kldiv
 
 def oneclass_eval(normal_class, kldiv_file, margin):
     if normal_class == -1:

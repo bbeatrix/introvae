@@ -10,6 +10,13 @@ from collections import OrderedDict
 
 import model, params, losses, utils, data
 
+from sklearn.metrics import roc_auc_score
+
+import neptune
+
+neptune.init(project_qualified_name="csadrian/oneclass")
+neptune.create_experiment()
+
 #
 # Config
 #
@@ -117,9 +124,11 @@ generator.summary()
 # Define losses
 #
 
-l_reg_z = losses.reg_loss(z_mean, z_log_var)
-l_reg_zr_ng = losses.reg_loss(zr_mean_ng, zr_log_var_ng)
-l_reg_zpp_ng = losses.reg_loss(zpp_mean_ng, zpp_log_var_ng)
+reg_loss = losses.reg_loss
+
+l_reg_z = reg_loss(z_mean, z_log_var)
+l_reg_zr_ng = reg_loss(zr_mean_ng, zr_log_var_ng)
+l_reg_zpp_ng = reg_loss(zpp_mean_ng, zpp_log_var_ng)
 
 reconst_loss = K.mean(keras.objectives.mean_squared_error(encoder_input, xr), axis=(1,2))
 
@@ -135,10 +144,16 @@ spectreg_loss += tf.reduce_mean(tf.reduce_sum(tf.square(z_log_var_gradients), ax
 
 
 encoder_l_adv = l_reg_z + args.alpha * K.maximum(0., args.m - l_reg_zr_ng) + args.alpha * K.maximum(0., args.m - l_reg_zpp_ng)
+
+
+#zn_mean, zn_log_var = encoder(tf.abs(tf.random_normal( [args.batch_size] + list(args.original_shape) )))
+#l_reg_noise = losses.reg_loss(zn_mean, zn_log_var)
+#encoder_l_adv += 10.0*args.alpha * K.maximum(0., args.m - l_reg_noise) 
+
 encoder_loss = encoder_l_adv + args.beta * l_ae + args.gradreg * spectreg_loss
 
-l_reg_zr = losses.reg_loss(zr_mean, zr_log_var)
-l_reg_zpp = losses.reg_loss(zpp_mean, zpp_log_var)
+l_reg_zr = reg_loss(zr_mean, zr_log_var)
+l_reg_zpp = reg_loss(zpp_mean, zpp_log_var)
 
 generator_l_adv = args.alpha * l_reg_zr + args.alpha * l_reg_zpp
 generator_loss = generator_l_adv + args.beta * l_ae2 + args.gradreg * spectreg_loss
@@ -209,6 +224,17 @@ with tf.Session() as session:
             enc_loss_np, enc_l_ae_np, l_reg_z_np, l_reg_zr_ng_np, l_reg_zpp_ng_np, generator_loss_np, dec_l_ae_np, l_reg_zr_np, l_reg_zpp_np, lr_np = \
              session.run([encoder_loss, l_ae, l_reg_z, l_reg_zr_ng, l_reg_zpp_ng, generator_loss, l_ae2, l_reg_zr, l_reg_zpp, learning_rate],
                          feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p})
+            neptune.send_metric('enc_loss', x=global_iters, y=enc_loss_np)
+            neptune.send_metric('l_ae', x=global_iters, y=enc_l_ae_np)
+            neptune.send_metric('l_reg_z', x=global_iters, y=l_reg_z_np)
+            neptune.send_metric('l_reg_zr_ng', x=global_iters, y=l_reg_zr_ng_np)
+            neptune.send_metric('l_reg_zpp_ng', x=global_iters, y=l_reg_zpp_ng_np)
+            neptune.send_metric('generator_loss', x=global_iters, y=generator_loss_np)
+            neptune.send_metric('dec_l_ae', x=global_iters, y=dec_l_ae_np)
+            neptune.send_metric('l_reg_zr', x=global_iters, y=l_reg_zr_np)
+            neptune.send_metric('l_reg_zpp', x=global_iters, y=l_reg_zpp_np)
+            neptune.send_metric('lr', x=global_iters, y=lr_np)
+
             print('Epoch: {}/{}, iteration: {}/{}'.format(epoch+1, args.nb_epoch, iteration+1, iterations))
             print(' Enc_loss: {}, l_ae:{},  l_reg_z: {}, l_reg_zr_ng: {}, l_reg_zpp_ng: {}, lr={}'.format(enc_loss_np, enc_l_ae_np, l_reg_z_np, l_reg_zr_ng_np, l_reg_zpp_ng_np, lr_np))
             print(' Dec_loss: {}, l_ae:{}, l_reg_zr: {}, l_reg_zpp: {}, lr={}'.format(generator_loss_np, dec_l_ae_np, l_reg_zr_np, l_reg_zpp_np, lr_np))
@@ -221,11 +247,15 @@ with tf.Session() as session:
             n_x = 5
             n_y = args.batch_size // n_x
             print('Save original images.')
-            utils.plot_images(np.transpose(x, (0, 2, 3, 1)), n_x, n_y, "{}_original_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
+            orig_img = utils.plot_images(np.transpose(x, (0, 2, 3, 1)), n_x, n_y, "{}_original_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
             print('Save generated images.')
-            utils.plot_images(np.transpose(x_p, (0, 2, 3, 1)), n_x, n_y, "{}_sampled_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
+            gen_img = utils.plot_images(np.transpose(x_p, (0, 2, 3, 1)), n_x, n_y, "{}_sampled_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
             print('Save reconstructed images.')
-            utils.plot_images(np.transpose(x_r, (0, 2, 3, 1)), n_x, n_y, "{}_reconstructed_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
+            rec_img = utils.plot_images(np.transpose(x_r, (0, 2, 3, 1)), n_x, n_y, "{}_reconstructed_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
+
+            neptune.send_image('original', orig_img)
+            neptune.send_image('generated', gen_img)
+            neptune.send_image('reconstruction', rec_img)
 
         if False and ((global_iters % iterations_per_epoch == 0) and ((epoch + 1) % 10 == 0)):
             if args.model_path is not None:
@@ -233,6 +263,12 @@ with tf.Session() as session:
                 print('Saved model to ' + saved)
 
         if ((global_iters % iterations_per_epoch == 0) and args.oneclass_eval):
-            utils.save_kldiv(session, args.prefix + "_cifar10", epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next}), OrderedDict({"mean": z_mean, "log_var": z_log_var}), args.test_size)
-            utils.save_kldiv(session, args.prefix + "_svhn", epoch, global_iters, args.batch_size, OrderedDict({encoder_input: svhn_test_next}), OrderedDict({"mean": z_mean, "log_var": z_log_var}), 26032)
+            kl_cifar10 = utils.save_kldiv(session, args.prefix + "_cifar10", epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next}), OrderedDict({"mean": z_mean, "log_var": z_log_var}), args.test_size)
+            kl_svhn = utils.save_kldiv(session, args.prefix + "_svhn", epoch, global_iters, args.batch_size, OrderedDict({encoder_input: svhn_test_next}), OrderedDict({"mean": z_mean, "log_var": z_log_var}), args.test_size) #26032)
             utils.oneclass_eval(args.normal_class, "{}_{}_epoch{}_iter{}.npy".format(args.prefix, 'kldiv', epoch, global_iters), args.m)
+
+            auc = roc_auc_score(np.concatenate(np.zeros_like(kl_cifar10), np.ones_like(kl_cifar10)), np.concatenate(kl_cifar10, kl_svhn))
+
+            neptune.send_metric('auc_cifar10_vs_svhn', x=global_iters, y=auc)
+
+neptune.stop()
