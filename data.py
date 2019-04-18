@@ -11,6 +11,7 @@ def read_npy_file(item):
     data = np.transpose(np.load(item.decode()), (0,3,1,2))[0,:,:,:]
     return data.astype(np.float32)
 
+
 def create_svhn_test_dataset(batch_size):
     test_dataset = tfds.load("svhn_cropped", split=tfds.Split.TEST)
     dataset = test_dataset \
@@ -91,3 +92,18 @@ def create_cifar10_unsup_dataset(batch_size, train_limit, test_limit, fixed_limi
     test_tuple = create_dataset_from_ndarray(x_test, batch_size, test_limit)
     fixed_tuple = create_dataset_from_ndarray(x_train, batch_size, fixed_limit)
     return (train_tuple, test_tuple, fixed_tuple)
+
+
+def get_dataset(dataset, split, batch_size, limit):
+
+    ds = tfds.load(name=dataset, split=split)
+        .take((limit // batch_size) * batch_size) \
+        .map(lambda x: x / 255.) \
+        .batch(batch_size) \
+        .repeat() \
+        .prefetch(2)
+    return ds
+
+
+
+
