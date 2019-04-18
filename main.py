@@ -15,15 +15,15 @@ from sklearn.metrics import roc_auc_score
 
 import neptune
 
+args = params.getArgs()
+print(args)
+
 neptune.init(project_qualified_name="csadrian/oneclass")
-neptune.create_experiment()
+neptune.create_experiment(params=vars(args))
 
 #
 # Config
 #
-
-args = params.getArgs()
-print(args)
 
 # set random seed
 np.random.seed(args.seed)
@@ -244,9 +244,9 @@ with tf.Session() as session:
             print(' Dec_loss: {}, l_ae:{}, l_reg_zr: {}, l_reg_zpp: {}, lr={}'.format(generator_loss_np, dec_l_ae_np, l_reg_zr_np, l_reg_zpp_np, lr_np))
 
         if ((global_iters % iterations_per_epoch == 0) and args.save_latent):
-            utils.save_output(session, '_'.join([args.prefix, args.dataset]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: fixed_next}), OrderedDict({"train_mean": z_mean, "train_log_var": z_log_var}), args.latent_cloud_size)
-            utils.save_output(session, '_'.join([args.prefix, args.test_dataset_a]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next_a}), OrderedDict({"test_mean": z_mean, "test_log_var": z_log_var, "test_reconstloss": reconst_loss}), args.test_size)
-            utils.save_output(session, '_'.join([args.prefix, args.test_dataset_b]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next_b}), OrderedDict({"test_mean": z_mean, "test_log_var": z_log_var, "test_reconstloss": reconst_loss}), args.test_size)
+            _ = utils.save_output(session, '_'.join([args.prefix, args.dataset]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: fixed_next}), OrderedDict({"train_mean": z_mean, "train_log_var": z_log_var}), args.latent_cloud_size)
+            a_result_dict = utils.save_output(session, '_'.join([args.prefix, args.test_dataset_a]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next_a}), OrderedDict({"test_mean": z_mean, "test_log_var": z_log_var, "test_reconstloss": reconst_loss}), args.test_size)
+            b_result_dict = utils.save_output(session, '_'.join([args.prefix, args.test_dataset_b]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next_b}), OrderedDict({"test_mean": z_mean, "test_log_var": z_log_var, "test_reconstloss": reconst_loss}), args.test_size)
 
         if ((global_iters % iterations_per_epoch == 0) and args.save_latent and (epoch + 1) % 10 == 0):
             n_x = 5
@@ -268,18 +268,20 @@ with tf.Session() as session:
                 print('Saved model to ' + saved)
 
         if ((global_iters % iterations_per_epoch == 0) and args.oneclass_eval):
+            utils.oneclass_eval(args.normal_class, "{}_{}_epoch{}_iter{}.npy".format(args.prefix, 'kldiv', epoch, global_iters), args.m)
             kl_a = utils.save_kldiv(session, '_'.join([args.prefix, args.test_dataset_a]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next_a}), OrderedDict({"mean": z_mean, "log_var": z_log_var}), args.test_size)
             kl_b = utils.save_kldiv(session, '_'.join([args.prefix, args.test_dataset_b]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next_b}), OrderedDict({"mean": z_mean, "log_var": z_log_var}), args.test_size)
-            utils.oneclass_eval(args.normal_class, "{}_{}_epoch{}_iter{}.npy".format(args.prefix, 'kldiv', epoch, global_iters), args.m)
-
+            mean_a = np.concatenate(a_result_dict['test_mean'], axis=0)
+            mean_b = np.concatenate(b_result_dict['test_mean'], axis=0)
             auc_kl = roc_auc_score(np.concatenate([np.zeros_like(kl_a), np.ones_like(kl_b)]), np.concatenate([kl_a, kl_b]))
             # auc_rec = roc_auc_score(np.concatenate([np.zeros_like(kl_cifar10), np.ones_like(kl_cifar10)]), np.concatenate([kl_cifar10, kl_svhn]))
-            # auc_mean = roc_auc_score(np.concatenate([np.zeros_like(kl_cifar10), np.ones_like(kl_cifar10)]), np.concatenate([kl_cifar10, kl_svhn]))
+            auc_mean = roc_auc_score(np.concatenate([np.zeros_like(mean_a), np.ones_like(mean_b)]), np.concatenate([mean_a, mean_b]))
             # auc_var = 
             # auc_l1_mean = 
             # auc_l1_var = 
 
-            neptune.send_metric('auc_{}_vs_{}'.format(args.test_dataset_a, args.test_dataset_b), x=global_iters, y=auc_kl)
+            neptune.send_metric('auc_kl_{}_vs_{}'.format(args.test_dataset_a, args.test_dataset_b), x=global_iters, y=auc_kl)
+            neptune.send_metric('auc_mean_{}_vs_{}'.format(args.test_dataset_a, args.test_dataset_b), x=global_iters, y=auc_mean)
             neptune.send_metric('auc', x=global_iters, y=auc_kl)
 
 neptune.stop()

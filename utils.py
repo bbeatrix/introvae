@@ -49,7 +49,7 @@ def save_output(session, prefix, epoch, global_iters, batch_size, input, output,
         filename = "{}_{}_epoch{}_iter{}.npy".format(prefix, k, epoch+1, global_iters)
         print("Saving {} pointcloud mean to {}".format(k, filename))
         np.save(filename, np.concatenate(result_dict[k], axis=0))
-
+    return result_dict
 
 def save_kldiv(session, prefix, epoch, global_iters, batch_size, input, output, limit):
     result_dict = {}
