@@ -79,6 +79,9 @@ if args.model_architecture == 'deepsvdd':
 elif args.model_architecture == 'dcgan':
     encoder_layers = model.encoder_layers_dcgan(args.shape, args.base_filter_num, args.encoder_use_bn, args.encoder_wd)
     generator_layers = model.generator_layers_dcgan(args.shape, args.base_filter_num, args.encoder_use_bn, args.generator_wd)
+elif args.model_architecture == 'dcgan_univ':
+    encoder_layers = model.encoder_layers_dcgan_univ(args.shape, args.n_channels, args.base_filter_num, args.encoder_use_bn, args.encoder_wd)
+    generator_layers = model.generator_layers_dcgan_univ(args.shape, args.n_channels, args.base_filter_num, args.encoder_use_bn, args.generator_wd)
 else:
     encoder_layers = model.encoder_layers_introvae(args.shape, args.base_filter_num, args.encoder_use_bn)
     generator_layers = model.generator_layers_introvae(args.shape, args.base_filter_num, args.generator_use_bn)

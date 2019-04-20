@@ -5,6 +5,89 @@ from keras.layers import Conv2D, BatchNormalization, Activation, Add, \
 from keras.models import Model
 from keras.regularizers import l2
 
+
+
+
+def encoder_layers_dcgan_univ(image_size, image_channels, base_channels, bn_allowed, wd):
+
+    n_upsample = 0
+    n = image_size[0]
+    while n % 2 == 0:
+        n = n // 2
+        n_upsample += 1
+    start_width = n
+
+
+
+    kernel = 4
+    downsamples = 0
+    channels = [base_channels, base_channels, 2*base_channels, 4*base_channels]
+
+    layers = []
+
+    for idx, channel in enumerate(channels):
+        if n_upsample <= downsamples:
+            border_mode="same"
+            stride = 1
+            activation = "linear"
+            use_bn = False
+        elif idx == 0:
+            border_mode = "same"
+            stride = 1
+            activation = "relu"
+            use_bn = bn_allowed
+        else:
+            border_mode = "same"
+            stride = 2
+            downsamples += 1
+            activation = "relu"
+            use_bn = bn_allowed
+        layers.append(Conv2D(channel, (kernel, kernel), strides=(stride, stride), padding=border_mode, use_bias=False, kernel_regularizer=l2(wd)))
+
+        if use_bn:
+            layers.append(BatchNormalization(axis=1))
+        layers.append(Activation(activation, name="encoder_{}".format(idx)))
+    layers.append(Flatten())
+    return layers
+
+
+def generator_layers_dcgan_univ(image_size, image_channels, base_channels, bn_allowed, wd):
+
+    n = image_size[0]
+    while n % 2 == 0:
+        n = n // 2
+    start_width = n
+    print("start_width", start_width)
+    layers = []
+    channels = [4*base_channels, 2*base_channels, base_channels, image_channels]
+    layers.append(Dense(channels[0]*start_width*start_width))
+    layers.append(Reshape((-1, start_width, start_width)))
+
+    size = start_width
+    stride = 2
+    kernel = 4
+    border_mode="same"
+    for idx, channel in enumerate(channels):
+
+        if idx == (len(channels)-1):
+            activation = "sigmoid"
+            use_bn = False
+        else:
+            activation="relu"
+            use_bn = bn_allowed
+    
+        layers.append(Conv2D(channel, (kernel, kernel), use_bias=False, strides=(1, 1), padding=border_mode, kernel_regularizer=l2(wd)))
+        if use_bn:
+            layers.append(BatchNormalization(axis=1))
+        layers.append(Activation(activation, name="generator_{}".format(idx)))
+
+        if image_size[0] != size:
+            layers.append(UpSampling2D((stride, stride)))
+            size = size * 2
+
+    return layers
+
+
 def encoder_layers_dcgan(image_size, base_channels, bn_allowed, wd):
     layers = []
     channels = [base_channels, 2*base_channels, 4*base_channels]
@@ -26,6 +109,8 @@ def encoder_layers_dcgan(image_size, base_channels, bn_allowed, wd):
         layers.append(Activation(activation, name="encoder_{}".format(idx)))
     layers.append(Flatten())
     return layers
+
+
 
 def generator_layers_dcgan(image_size, base_channels, bn_allowed, wd):
     layers = []
