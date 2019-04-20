@@ -28,6 +28,10 @@ parser.add_argument('--m', dest="m", type=int, default=120, help="Value of model
 parser.add_argument('--alpha', dest="alpha", type=float, default=0.25, help="Value of model hyperparameter alpha.")
 parser.add_argument('--beta', dest="beta", type=float, default=0.05, help="Value of model hyperparameter beta.")
 
+parser.add_argument('--reg_lambda', dest="reg_lambda", type=float, default=1.0, help="Weight of vae loss.")
+parser.add_argument('--use_augmented_variance_loss', dest="use_augmented_variance_loss", type=str2bool, default=False, help="If true, augmented variance loss is used instead of standard vae loss.")
+
+
 # training
 parser.add_argument('--lr', dest="lr", default="0.001", type=float, help="Learning rate for the optimizer.")
 parser.add_argument('--batch_size', dest="batch_size", default=200, type=int, help="Batch size.")

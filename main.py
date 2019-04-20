@@ -132,11 +132,14 @@ generator.summary()
 # Define losses
 #
 
-reg_loss = losses.reg_loss
+if args.use_augmented_variance_loss:
+    train_reg_loss = losses.reg_loss
+else:
+    train_reg_loss = losses.augmented_variance_loss
 
-l_reg_z = reg_loss(z_mean, z_log_var)
-l_reg_zr_ng = reg_loss(zr_mean_ng, zr_log_var_ng)
-l_reg_zpp_ng = reg_loss(zpp_mean_ng, zpp_log_var_ng)
+l_reg_z = train_reg_loss(z_mean, z_log_var)
+l_reg_zr_ng = train_reg_loss(zr_mean_ng, zr_log_var_ng)
+l_reg_zpp_ng = train_reg_loss(zpp_mean_ng, zpp_log_var_ng)
 
 reconst_loss = K.mean(keras.objectives.mean_squared_error(encoder_input, xr), axis=(1,2))
 
@@ -151,17 +154,17 @@ spectreg_loss += tf.reduce_mean(tf.reduce_sum(tf.square(z_log_var_gradients), ax
 #spectreg_loss = tf.reduce_mean(spectreg_loss, axis=-1)
 
 
-encoder_l_adv = l_reg_z + args.alpha * K.maximum(0., args.m - l_reg_zr_ng) + args.alpha * K.maximum(0., args.m - l_reg_zpp_ng)
+encoder_l_adv = args.reg_lambda * l_reg_z + args.alpha * K.maximum(0., args.m - l_reg_zr_ng) + args.alpha * K.maximum(0., args.m - l_reg_zpp_ng)
 
 
 #zn_mean, zn_log_var = encoder(tf.abs(tf.random_normal( [args.batch_size] + list(args.original_shape) )))
-#l_reg_noise = losses.reg_loss(zn_mean, zn_log_var)
+#l_reg_noise = train_reg_loss(zn_mean, zn_log_var)
 #encoder_l_adv += 10.0*args.alpha * K.maximum(0., args.m - l_reg_noise) 
 
 encoder_loss = encoder_l_adv + args.beta * l_ae + args.gradreg * spectreg_loss
 
-l_reg_zr = reg_loss(zr_mean, zr_log_var)
-l_reg_zpp = reg_loss(zpp_mean, zpp_log_var)
+l_reg_zr = train_reg_loss(zr_mean, zr_log_var)
+l_reg_zpp = train_reg_loss(zpp_mean, zpp_log_var)
 
 generator_l_adv = args.alpha * l_reg_zr + args.alpha * l_reg_zpp
 generator_loss = generator_l_adv + args.beta * l_ae2 + args.gradreg * spectreg_loss
