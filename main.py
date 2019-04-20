@@ -275,8 +275,14 @@ with tf.Session() as session:
 
         if ((global_iters % iterations_per_epoch == 0) and args.oneclass_eval):
             utils.oneclass_eval(args.normal_class, "{}_{}_epoch{}_iter{}.npy".format(args.prefix, 'kldiv', epoch, global_iters), args.m)
-            kl_a = utils.save_kldiv(session, '_'.join([args.prefix, args.test_dataset_a]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next_a}), OrderedDict({"mean": z_mean, "log_var": z_log_var}), args.test_size)
-            kl_b = utils.save_kldiv(session, '_'.join([args.prefix, args.test_dataset_b]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next_b}), OrderedDict({"mean": z_mean, "log_var": z_log_var}), args.test_size)
+            #kl_a = utils.save_kldiv(session, '_'.join([args.prefix, args.test_dataset_a]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next_a}), OrderedDict({"mean": z_mean, "log_var": z_log_var}), args.test_size)
+            #kl_b = utils.save_kldiv(session, '_'.join([args.prefix, args.test_dataset_b]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next_b}), OrderedDict({"mean": z_mean, "log_var": z_log_var}), args.test_size)
+
+            def kldiv(mean, log_var):
+                return 0.5 * np.sum(- 1 - log_var + np.square(mean) + np.exp(log_var), axis=-1)
+
+            kl_a = kldiv(a_result_dict['test_mean'], a_result_dict['test_log_var'])
+            kl_b = kldiv(b_result_dict['test_mean'], b_result_dict['test_log_var'])
             mean_a = np.mean(a_result_dict['test_mean'], axis=1)
             mean_b = np.mean(b_result_dict['test_mean'], axis=1)
             rec_a = a_result_dict['test_reconstloss']
@@ -285,19 +291,23 @@ with tf.Session() as session:
             l2_mean_b = np.linalg.norm(b_result_dict['test_mean'], axis=1)
             l2_var_a = np.linalg.norm(a_result_dict['test_log_var'], axis=1)
             l2_var_b = np.linalg.norm(b_result_dict['test_log_var'], axis=1)
+            likelihood_a = kl_a + rec_a
+            likelihood_b = kl_b + rec_b
 
             auc_kl = roc_auc_score(np.concatenate([np.zeros_like(kl_a), np.ones_like(kl_b)]), np.concatenate([kl_a, kl_b]))
             auc_mean = roc_auc_score(np.concatenate([np.zeros_like(mean_a), np.ones_like(mean_b)]), np.concatenate([mean_a, mean_b]))
             auc_rec = roc_auc_score(np.concatenate([np.zeros_like(rec_a), np.ones_like(rec_b)]), np.concatenate([rec_a, rec_b]))
             auc_l2_mean = roc_auc_score(np.concatenate([np.zeros_like(l2_mean_a), np.ones_like(l2_mean_b)]), np.concatenate([l2_mean_a, l2_mean_b]))
             auc_l2_var = roc_auc_score(np.concatenate([np.zeros_like(l2_var_a), np.ones_like(l2_var_b)]), np.concatenate([l2_var_a, l2_var_b]))
+            auc_likelihood = roc_auc_score(np.concatenate([np.zeros_like(likelihood_a), np.ones_like(likelihood_b)]), np.concatenate([likelihood_a, likelihood_b]))
             
             neptune.send_metric('auc_kl_{}_vs_{}'.format(args.test_dataset_a, args.test_dataset_b), x=global_iters, y=auc_kl)
             neptune.send_metric('auc_mean_{}_vs_{}'.format(args.test_dataset_a, args.test_dataset_b), x=global_iters, y=auc_mean)
             neptune.send_metric('auc_rec_{}_vs_{}'.format(args.test_dataset_a, args.test_dataset_b), x=global_iters, y=auc_rec)
             neptune.send_metric('auc_l2_mean_{}_vs_{}'.format(args.test_dataset_a, args.test_dataset_b), x=global_iters, y=auc_l2_mean)
             neptune.send_metric('auc_l2_var_{}_vs_{}'.format(args.test_dataset_a, args.test_dataset_b), x=global_iters, y=auc_l2_var)
+            neptune.send_metric('auc_likelihood_{}_vs_{}'.format(args.test_dataset_a, args.test_dataset_b), x=global_iters, y=auc_likelihood)
             
-            neptune.send_metric('auc', x=global_iters, y=auc_kl)
+            neptune.send_metric('auc', x=global_iters, y=auc_likelihood)
 
 neptune.stop()
