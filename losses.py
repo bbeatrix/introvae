@@ -13,7 +13,7 @@ def reg_loss(mean, log_var):
 
 
 def augmented_variance_loss(mean, log_var):
-    variance = K.exp(z_log_var)
+    variance = K.exp(log_var)
     mean_variance = K.var(mean, axis=0, keepdims=True)
     total_variance = variance + mean_variance
     loss = 0.5 * K.sum(-1 - K.log(total_variance) + total_variance, axis=-1)

@@ -133,9 +133,9 @@ generator.summary()
 #
 
 if args.use_augmented_variance_loss:
-    train_reg_loss = losses.reg_loss
-else:
     train_reg_loss = losses.augmented_variance_loss
+else:
+    train_reg_loss = losses.reg_loss
 
 l_reg_z = train_reg_loss(z_mean, z_log_var)
 l_reg_zr_ng = train_reg_loss(zr_mean_ng, zr_log_var_ng)
