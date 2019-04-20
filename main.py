@@ -285,7 +285,7 @@ with tf.Session() as session:
             l2_mean_b = np.linalg.norm(b_result_dict['test_mean'], axis=1)
             l2_var_a = np.linalg.norm(a_result_dict['test_log_var'], axis=1)
             l2_var_b = np.linalg.norm(b_result_dict['test_log_var'], axis=1)
-            
+
             auc_kl = roc_auc_score(np.concatenate([np.zeros_like(kl_a), np.ones_like(kl_b)]), np.concatenate([kl_a, kl_b]))
             auc_mean = roc_auc_score(np.concatenate([np.zeros_like(mean_a), np.ones_like(mean_b)]), np.concatenate([mean_a, mean_b]))
             auc_rec = roc_auc_score(np.concatenate([np.zeros_like(rec_a), np.ones_like(rec_b)]), np.concatenate([rec_a, rec_b]))
