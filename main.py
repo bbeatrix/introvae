@@ -250,11 +250,16 @@ with tf.Session() as session:
             print(' Dec_loss: {}, l_ae:{}, l_reg_zr: {}, l_reg_zpp: {}, lr={}'.format(generator_loss_np, dec_l_ae_np, l_reg_zr_np, l_reg_zpp_np, lr_np))
 
         if ((global_iters % iterations_per_epoch == 0) and args.save_latent):
+            _ = session.run([test_iterator_init_op_a, test_iteration_init_op_b])
             _ = utils.save_output(session, '_'.join([args.prefix, args.dataset]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: fixed_next}), OrderedDict({"train_mean": z_mean, "train_log_var": z_log_var}), args.latent_cloud_size)
             a_result_dict = utils.save_output(session, '_'.join([args.prefix, args.test_dataset_a]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next_a}), OrderedDict({"test_mean": z_mean, "test_log_var": z_log_var, "test_reconstloss": reconst_loss}), args.test_size)
             b_result_dict = utils.save_output(session, '_'.join([args.prefix, args.test_dataset_b]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next_b}), OrderedDict({"test_mean": z_mean, "test_log_var": z_log_var, "test_reconstloss": reconst_loss}), args.test_size)
 
         if ((global_iters % iterations_per_epoch == 0) and args.save_latent and (epoch + 1) % 10 == 0):
+
+            _ = session.run([test_iterator_init_op_a, test_iteration_init_op_b])
+            x_t_a, x_t_b = session.run([test_next_a, test_next_b])
+
             n_x = 5
             n_y = min(args.batch_size // n_x, 50)
             print('Save original images.')
@@ -263,10 +268,16 @@ with tf.Session() as session:
             gen_img = utils.plot_images(np.transpose(x_p, (0, 2, 3, 1)), n_x, n_y, "{}_sampled_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
             print('Save reconstructed images.')
             rec_img = utils.plot_images(np.transpose(x_r, (0, 2, 3, 1)), n_x, n_y, "{}_reconstructed_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
+            print('Save A test images.')
+            test_a_img = utils.plot_images(np.transpose(x_t_a, (0, 2, 3, 1)), n_x, n_y, "{}_test_a_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
+            print('Save B test images.')
+            test_b_img = utils.plot_images(np.transpose(x_t_b, (0, 2, 3, 1)), n_x, n_y, "{}_test_b_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
 
             neptune.send_image('original', orig_img)
             neptune.send_image('generated', gen_img)
             neptune.send_image('reconstruction', rec_img)
+            neptune.send_image('test_a', test_a_img)
+            neptune.send_image('test_b', test_b_img)
 
         if False and ((global_iters % iterations_per_epoch == 0) and ((epoch + 1) % 10 == 0)):
             if args.model_path is not None:
@@ -281,8 +292,8 @@ with tf.Session() as session:
             def kldiv(mean, log_var):
                 return 0.5 * np.sum(- 1 - log_var + np.square(mean) + np.exp(log_var), axis=-1)
 
-            kl_a = kldiv(a_result_dict['test_mean'], a_result_dict['test_log_var'])
-            kl_b = kldiv(b_result_dict['test_mean'], b_result_dict['test_log_var'])
+            kl_a = kldiv( np.array(a_result_dict['test_mean']), np.array(a_result_dict['test_log_var']))
+            kl_b = kldiv( np.array(b_result_dict['test_mean']), np.array(b_result_dict['test_log_var']))
             mean_a = np.mean(a_result_dict['test_mean'], axis=1)
             mean_b = np.mean(b_result_dict['test_mean'], axis=1)
             rec_a = a_result_dict['test_reconstloss']
@@ -293,6 +304,13 @@ with tf.Session() as session:
             l2_var_b = np.linalg.norm(b_result_dict['test_log_var'], axis=1)
             likelihood_a = kl_a + rec_a
             likelihood_b = kl_b + rec_b
+
+            neptune.send_metric('test_mean_a', np.mean(mean_a))
+            neptune.send_metric('test_mean_b', np.mean(mean_b))
+            neptune.send_metric('test_var_a', np.mean(np.exp(a_result_dict['test_log_var']), axis=(1,2)))
+            neptune.send_metric('test_var_b', np.mean(np.exp(b_result_dict['test_log_var']), axis=(1,2)))
+            neptune.send_metric('test_rec_a', np.mean(rec_a))
+            neptune.send_metric('test_rec_b', np.mean(rec_b))
 
             auc_kl = roc_auc_score(np.concatenate([np.zeros_like(kl_a), np.ones_like(kl_b)]), np.concatenate([kl_a, kl_b]))
             auc_mean = roc_auc_score(np.concatenate([np.zeros_like(mean_a), np.ones_like(mean_b)]), np.concatenate([mean_a, mean_b]))
