@@ -307,8 +307,8 @@ with tf.Session() as session:
 
             neptune.send_metric('test_mean_a', np.mean(mean_a))
             neptune.send_metric('test_mean_b', np.mean(mean_b))
-            neptune.send_metric('test_var_a', np.mean(np.exp(a_result_dict['test_log_var']), axis=(1,2)))
-            neptune.send_metric('test_var_b', np.mean(np.exp(b_result_dict['test_log_var']), axis=(1,2)))
+            neptune.send_metric('test_var_a', np.mean(np.exp(a_result_dict['test_log_var']), axis=(0,1)))
+            neptune.send_metric('test_var_b', np.mean(np.exp(b_result_dict['test_log_var']), axis=(0,1)))
             neptune.send_metric('test_rec_a', np.mean(rec_a))
             neptune.send_metric('test_rec_b', np.mean(rec_b))
 
