@@ -258,7 +258,9 @@ with tf.Session() as session:
         if ((global_iters % iterations_per_epoch == 0) and args.save_latent and (epoch + 1) % 10 == 0):
 
             _ = session.run([test_iterator_init_op_a, test_iterator_init_op_b])
-            x_t_a, x_t_b = session.run([test_next_a, test_next_b])
+            xt_a, xt_b = session.run([test_next_a, test_next_b])
+            xt_a_r, = session.run([xr], feed_dict={encoder_input: xt_a})
+            xt_b_r, = session.run([xr], feed_dict={encoder_input: xt_b})
 
             n_x = 5
             n_y = min(args.batch_size // n_x, 50)
@@ -269,9 +271,9 @@ with tf.Session() as session:
             print('Save reconstructed images.')
             rec_img = utils.plot_images(np.transpose(x_r, (0, 2, 3, 1)), n_x, n_y, "{}_reconstructed_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
             print('Save A test images.')
-            test_a_img = utils.plot_images(np.transpose(x_t_a, (0, 2, 3, 1)), n_x, n_y, "{}_test_a_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
+            test_a_img = utils.plot_images(np.transpose(xt_a_r, (0, 2, 3, 1)), n_x, n_y, "{}_test_a_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
             print('Save B test images.')
-            test_b_img = utils.plot_images(np.transpose(x_t_b, (0, 2, 3, 1)), n_x, n_y, "{}_test_b_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
+            test_b_img = utils.plot_images(np.transpose(xt_b_r, (0, 2, 3, 1)), n_x, n_y, "{}_test_b_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
 
             neptune.send_image('original', orig_img)
             neptune.send_image('generated', gen_img)
