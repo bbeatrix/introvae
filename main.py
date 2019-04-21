@@ -19,7 +19,7 @@ args = params.getArgs()
 print(args)
 
 neptune.init(project_qualified_name="csadrian/oneclass")
-neptune.create_experiment(params=vars(args))
+neptune.create_experiment(params=vars(args), name=args.name)
 
 #
 # Config

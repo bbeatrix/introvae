@@ -12,6 +12,7 @@ def str2bool(v):
 parser = argparse.ArgumentParser()
 
 # datasets
+parser.add_argument('--name', dest="name", default="", type=str, help="Name of the experiment.")
 parser.add_argument('--dataset', dest="dataset", default="celeba-128x128", type=str, help="Dataset (possible values: celeba-128x128, cifar10)")
 parser.add_argument('--datasets_dir', dest="datasets_dir", default="datasets", type=str, help="Location of datasets.")
 parser.add_argument('--color', dest="color", default=True, type=str2bool, help="Color (True/False)")
