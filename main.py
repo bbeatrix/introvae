@@ -159,7 +159,7 @@ encoder_l_adv = args.reg_lambda * l_reg_z + args.alpha * K.maximum(0., args.m - 
 if args.random_images_as_negative:
     zn_mean, zn_log_var = encoder(tf.clip_by_value(tf.abs(tf.random_normal( [args.batch_size] + list(args.original_shape) )), 0.0, 1.0))
     l_reg_noise = train_reg_loss(zn_mean, zn_log_var)
-    encoder_l_adv += args.reg_lambda * K.maximum(0., args.m - l_reg_noise) 
+    encoder_l_adv += args.reg_lambda * K.maximum(0., args.m - l_reg_noise)
 
 encoder_loss = encoder_l_adv + args.beta * l_ae + args.gradreg * spectreg_loss
 
