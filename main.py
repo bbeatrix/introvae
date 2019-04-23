@@ -166,9 +166,11 @@ encoder_loss = encoder_l_adv + args.beta * l_ae + args.gradreg * spectreg_loss
 l_reg_zr = train_reg_loss(zr_mean, zr_log_var)
 l_reg_zpp = train_reg_loss(zpp_mean, zpp_log_var)
 
-generator_l_adv = args.alpha * l_reg_zr + args.alpha * l_reg_zpp
-generator_loss = generator_l_adv + args.beta * l_ae2 + args.gradreg * spectreg_loss
-
+if args.generator_adversarial_loss:
+    generator_l_adv = args.alpha * l_reg_zr + args.alpha * l_reg_zpp
+    generator_loss = generator_l_adv + args.beta * l_ae2 + args.gradreg * spectreg_loss
+else:
+    generator_loss = args.beta * l_ae2 + args.gradreg * spectreg_loss
 
 #
 # Define training step operations

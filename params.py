@@ -32,7 +32,7 @@ parser.add_argument('--beta', dest="beta", type=float, default=0.05, help="Value
 parser.add_argument('--reg_lambda', dest="reg_lambda", type=float, default=1.0, help="Weight of vae loss.")
 parser.add_argument('--use_augmented_variance_loss', dest="use_augmented_variance_loss", type=str2bool, default=False, help="If true, augmented variance loss is used instead of standard vae loss.")
 parser.add_argument('--random_images_as_negative', dest="random_images_as_negative", default=False, type=str2bool, help="Use random images as negative samples.")
-
+parser.add_argument('--generator_adversarial_loss', dest="generator_adversarial_loss", type=str2bool, default=True, help="If False, the generator loss is just the ae loss, otherwise the adversarial loss is added to it.")
 
 # training
 parser.add_argument('--lr', dest="lr", default="0.001", type=float, help="Learning rate for the optimizer.")
