@@ -1,7 +1,7 @@
 #!/bin/bash
 
 m=30
-alpha=0.0
+alpha=0.5
 base_filter_num=16
 train_dataset='fashion_mnist'
 test_dataset_a='fashion_mnist'
