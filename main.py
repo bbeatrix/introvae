@@ -161,6 +161,13 @@ if args.random_images_as_negative:
     l_reg_noise = train_reg_loss(zn_mean, zn_log_var)
     encoder_l_adv += args.reg_lambda * K.maximum(0., args.m - l_reg_noise)
 
+if args.fixed_gen_as_negative:
+    z_fg = np.random.normal(loc=0.0, scale=1.0, size=(args.batch_size, args.latent_dim))
+    fixed_gen_input = Input(batch_shape=[args.batch_size] + list(args.original_shape), name='fixed_gen_input')
+    z_fg_mean, z_fg_log_var = encoder(fixed_gen_input)
+    l_reg_fixed_gen = train_reg_loss(z_fg_mean, z_fg_log_var)
+    encoder_l_adv += args.reg_lambda * K.maximum(0., args.m - l_reg_fixed_gen)
+
 encoder_loss = encoder_l_adv + args.beta * l_ae + args.gradreg * spectreg_loss
 
 l_reg_zr = train_reg_loss(zr_mean, zr_log_var)
@@ -225,17 +232,29 @@ with tf.Session() as session:
         z_p = np.random.normal(loc=0.0, scale=1.0, size=(args.batch_size, args.latent_dim))
         z_x, x_r, x_p = session.run([z, xr, generator_output], feed_dict={encoder_input: x, generator_input: z_p})
 
-        _ = session.run([encoder_apply_grads_op], feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p})
-        _ = session.run([generator_apply_grads_op], feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p})
+        if args.fixed_gen_as_negative:
+            if epoch <= args.fixed_gen_max_epoch: # and global_iters % iterations_per_epoch == 0:
+                x_fg = session.run([generator_output], feed_dict={generator_input: z_fg})[0]
+
+            _ = session.run([encoder_apply_grads_op], feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p, fixed_gen_input: x_fg})
+            _ = session.run([generator_apply_grads_op], feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p, fixed_gen_input: x_fg})
+        else:
+            _ = session.run([encoder_apply_grads_op], feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p})
+            _ = session.run([generator_apply_grads_op], feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p})
 
         if global_iters % 10 == 0:
             summary, = session.run([summary_op], feed_dict={encoder_input: x})
             summary_writer.add_summary(summary, global_iters)
 
         if (global_iters % args.frequency) == 0:
-            enc_loss_np, enc_l_ae_np, l_reg_z_np, l_reg_zr_ng_np, l_reg_zpp_ng_np, generator_loss_np, dec_l_ae_np, l_reg_zr_np, l_reg_zpp_np, lr_np = \
-             session.run([encoder_loss, l_ae, l_reg_z, l_reg_zr_ng, l_reg_zpp_ng, generator_loss, l_ae2, l_reg_zr, l_reg_zpp, learning_rate],
-                         feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p})
+            if args.fixed_gen_as_negative:
+                enc_loss_np, enc_l_ae_np, l_reg_z_np, l_reg_zr_ng_np, l_reg_zpp_ng_np, generator_loss_np, dec_l_ae_np, l_reg_zr_np, l_reg_zpp_np, lr_np = \
+                    session.run([encoder_loss, l_ae, l_reg_z, l_reg_zr_ng, l_reg_zpp_ng, generator_loss, l_ae2, l_reg_zr, l_reg_zpp, learning_rate],
+                                feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p, fixed_gen_input: x_fg})
+            else:
+                enc_loss_np, enc_l_ae_np, l_reg_z_np, l_reg_zr_ng_np, l_reg_zpp_ng_np, generator_loss_np, dec_l_ae_np, l_reg_zr_np, l_reg_zpp_np, lr_np = \
+                    session.run([encoder_loss, l_ae, l_reg_z, l_reg_zr_ng, l_reg_zpp_ng, generator_loss, l_ae2, l_reg_zr, l_reg_zpp, learning_rate],
+                                feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p})
             neptune.send_metric('enc_loss', x=global_iters, y=enc_loss_np)
             neptune.send_metric('l_ae', x=global_iters, y=enc_l_ae_np)
             neptune.send_metric('l_reg_z', x=global_iters, y=l_reg_z_np)
@@ -283,6 +302,7 @@ with tf.Session() as session:
             neptune.send_image('test_a', test_a_img)
             neptune.send_image('test_b', test_b_img)
 
+
         if False and ((global_iters % iterations_per_epoch == 0) and ((epoch + 1) % 10 == 0)):
             if args.model_path is not None:
                 saved = saver.save(session, args.model_path + "/model", global_step=global_iters)
@@ -322,14 +342,14 @@ with tf.Session() as session:
             auc_l2_mean = roc_auc_score(np.concatenate([np.zeros_like(l2_mean_a), np.ones_like(l2_mean_b)]), np.concatenate([l2_mean_a, l2_mean_b]))
             auc_l2_var = roc_auc_score(np.concatenate([np.zeros_like(l2_var_a), np.ones_like(l2_var_b)]), np.concatenate([l2_var_a, l2_var_b]))
             auc_likelihood = roc_auc_score(np.concatenate([np.zeros_like(likelihood_a), np.ones_like(likelihood_b)]), np.concatenate([likelihood_a, likelihood_b]))
-            
+
             neptune.send_metric('auc_kl_{}_vs_{}'.format(args.test_dataset_a, args.test_dataset_b), x=global_iters, y=auc_kl)
             neptune.send_metric('auc_mean_{}_vs_{}'.format(args.test_dataset_a, args.test_dataset_b), x=global_iters, y=auc_mean)
             neptune.send_metric('auc_rec_{}_vs_{}'.format(args.test_dataset_a, args.test_dataset_b), x=global_iters, y=auc_rec)
             neptune.send_metric('auc_l2_mean_{}_vs_{}'.format(args.test_dataset_a, args.test_dataset_b), x=global_iters, y=auc_l2_mean)
             neptune.send_metric('auc_l2_var_{}_vs_{}'.format(args.test_dataset_a, args.test_dataset_b), x=global_iters, y=auc_l2_var)
             neptune.send_metric('auc_likelihood_{}_vs_{}'.format(args.test_dataset_a, args.test_dataset_b), x=global_iters, y=auc_likelihood)
-            
+
             neptune.send_metric('auc', x=global_iters, y=auc_likelihood)
 
 neptune.stop()
