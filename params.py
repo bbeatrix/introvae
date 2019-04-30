@@ -25,6 +25,7 @@ parser.add_argument('--test_dataset_a', dest='test_dataset_a', default='cifar10'
 parser.add_argument('--test_dataset_b', dest='test_dataset_b', default='svhn_cropped', type=str, help="Test dataset b - for comparison on different test datasets")
 
 # model hyperparameters
+parser.add_argument('--margin_inf', dest="margin_inf", type=str2bool, default=False, help="If True, the margin is increasing intead of being fixed value")
 parser.add_argument('--m', dest="m", type=int, default=120, help="Value of model hyperparameter m.")
 parser.add_argument('--alpha', dest="alpha", type=float, default=0.25, help="Value of model hyperparameter alpha.")
 parser.add_argument('--beta', dest="beta", type=float, default=0.05, help="Value of model hyperparameter beta.")

@@ -153,20 +153,28 @@ spectreg_loss = tf.reduce_mean(tf.reduce_sum(tf.square(z_mean_gradients), axis=1
 spectreg_loss += tf.reduce_mean(tf.reduce_sum(tf.square(z_log_var_gradients), axis=1))
 #spectreg_loss = tf.reduce_mean(spectreg_loss, axis=-1)
 
+if args.margin_inf or args.m < 0.:
+    margin_variable = tf.Variable(0., trainable=False)
+    margin_update_op = tf.assign(margin_variable, margin_variable + 1/1000)
+    margin = 10 * tf.math.log(margin_variable + 1)
+    # margin = margin_variable
+else:
+    margin = tf.Variable(args.m, trainable=False)
+    margin_update_op = tf.assign(margin, margin)
 
-encoder_l_adv = args.reg_lambda * l_reg_z + args.alpha * K.maximum(0., args.m - l_reg_zr_ng) + args.alpha * K.maximum(0., args.m - l_reg_zpp_ng)
+encoder_l_adv = args.reg_lambda * l_reg_z + args.alpha * K.maximum(0., margin - l_reg_zr_ng) + args.alpha * K.maximum(0., margin - l_reg_zpp_ng)
 
 if args.random_images_as_negative:
     zn_mean, zn_log_var = encoder(tf.clip_by_value(tf.abs(tf.random_normal( [args.batch_size] + list(args.original_shape) )), 0.0, 1.0))
     l_reg_noise = train_reg_loss(zn_mean, zn_log_var)
-    encoder_l_adv += args.reg_lambda * K.maximum(0., args.m - l_reg_noise)
+    encoder_l_adv += args.reg_lambda * K.maximum(0., margin - l_reg_noise)
 
 if args.fixed_gen_as_negative:
     z_fg = np.random.normal(loc=0.0, scale=1.0, size=(args.batch_size, args.latent_dim))
     fixed_gen_input = Input(batch_shape=[args.batch_size] + list(args.original_shape), name='fixed_gen_input')
     z_fg_mean, z_fg_log_var = encoder(fixed_gen_input)
     l_reg_fixed_gen = train_reg_loss(z_fg_mean, z_fg_log_var)
-    encoder_l_adv += args.reg_lambda * K.maximum(0., args.m - l_reg_fixed_gen)
+    encoder_l_adv += args.reg_lambda * K.maximum(0., margin - l_reg_fixed_gen)
 
 encoder_loss = encoder_l_adv + args.beta * l_ae + args.gradreg * spectreg_loss
 
@@ -219,16 +227,16 @@ with tf.Session() as session:
         start_epoch = (global_iters * args.batch_size) // args.train_size
     print('Global iters: ', global_iters)
 
-    if args.oneclass_eval:
-        utils.save_kldiv(session, '_'.join([args.prefix, args.test_dataset_a]), start_epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next_a}), OrderedDict({"mean": z_mean, "log_var": z_log_var}), args.test_size)
-        utils.save_kldiv(session, '_'.join([args.prefix, args.test_dataset_b]), start_epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next_b}), OrderedDict({"mean": z_mean, "log_var": z_log_var}), args.test_size)
-        utils.oneclass_eval(args.normal_class, "{}_{}_epoch{}_iter{}.npy".format(args.prefix, 'kldiv', start_epoch, global_iters), args.m)
+    #if args.oneclass_eval:
+        #utils.save_kldiv(session, '_'.join([args.prefix, args.test_dataset_a]), start_epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next_a}), OrderedDict({"mean": z_mean, "log_var": z_log_var}), args.test_size)
+        #utils.save_kldiv(session, '_'.join([args.prefix, args.test_dataset_b]), start_epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next_b}), OrderedDict({"mean": z_mean, "log_var": z_log_var}), args.test_size)
+        #utils.oneclass_eval(args.normal_class, "{}_{}_epoch{}_iter{}.npy".format(args.prefix, 'kldiv', start_epoch, global_iters), margin_np)
 
     for iteration in range(iterations):
         epoch = global_iters * args.batch_size // args.train_size
         global_iters += 1
 
-        x = session.run(train_next)
+        x, _, margin_np = session.run([train_next, margin_update_op, margin])
         z_p = np.random.normal(loc=0.0, scale=1.0, size=(args.batch_size, args.latent_dim))
         z_x, x_r, x_p = session.run([z, xr, generator_output], feed_dict={encoder_input: x, generator_input: z_p})
 
@@ -255,6 +263,7 @@ with tf.Session() as session:
                 enc_loss_np, enc_l_ae_np, l_reg_z_np, l_reg_zr_ng_np, l_reg_zpp_ng_np, generator_loss_np, dec_l_ae_np, l_reg_zr_np, l_reg_zpp_np, lr_np = \
                     session.run([encoder_loss, l_ae, l_reg_z, l_reg_zr_ng, l_reg_zpp_ng, generator_loss, l_ae2, l_reg_zr, l_reg_zpp, learning_rate],
                                 feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p})
+
             neptune.send_metric('enc_loss', x=global_iters, y=enc_loss_np)
             neptune.send_metric('l_ae', x=global_iters, y=enc_l_ae_np)
             neptune.send_metric('l_reg_z', x=global_iters, y=l_reg_z_np)
@@ -265,6 +274,7 @@ with tf.Session() as session:
             neptune.send_metric('l_reg_zr', x=global_iters, y=l_reg_zr_np)
             neptune.send_metric('l_reg_zpp', x=global_iters, y=l_reg_zpp_np)
             neptune.send_metric('lr', x=global_iters, y=lr_np)
+            neptune.send_metric('margin', x=global_iters, y=margin_np)
 
             print('Epoch: {}/{}, iteration: {}/{}'.format(epoch+1, args.nb_epoch, iteration+1, iterations))
             print(' Enc_loss: {}, l_ae:{},  l_reg_z: {}, l_reg_zr_ng: {}, l_reg_zpp_ng: {}, lr={}'.format(enc_loss_np, enc_l_ae_np, l_reg_z_np, l_reg_zr_ng_np, l_reg_zpp_ng_np, lr_np))
@@ -309,7 +319,7 @@ with tf.Session() as session:
                 print('Saved model to ' + saved)
 
         if ((global_iters % iterations_per_epoch == 0) and args.oneclass_eval):
-            utils.oneclass_eval(args.normal_class, "{}_{}_epoch{}_iter{}.npy".format(args.prefix, 'kldiv', epoch, global_iters), args.m)
+            utils.oneclass_eval(args.normal_class, "{}_{}_epoch{}_iter{}.npy".format(args.prefix, 'kldiv', epoch, global_iters), margin_np)
             #kl_a = utils.save_kldiv(session, '_'.join([args.prefix, args.test_dataset_a]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next_a}), OrderedDict({"mean": z_mean, "log_var": z_log_var}), args.test_size)
             #kl_b = utils.save_kldiv(session, '_'.join([args.prefix, args.test_dataset_b]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next_b}), OrderedDict({"mean": z_mean, "log_var": z_log_var}), args.test_size)
 
