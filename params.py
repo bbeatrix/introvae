@@ -51,6 +51,7 @@ parser.add_argument('--latent_dim', dest="latent_dim", type=int, default=3, help
 parser.add_argument('--base_filter_num', dest="base_filter_num", default=32, type=int, help="Initial number of filter in the conv model.")
 parser.add_argument('--resnet_wideness', dest="resnet_wideness", default=1, help="Wideness of resnet model (1-wide first block has 16 filters).")
 parser.add_argument('--model_architecture', dest="model_architecture", type=str, default="introvae", help="Model architecture (introvae/deepsvdd/dcgan)")
+parser.add_argument('--separate_discriminator', dest="separate_discriminator", type=str2bool, default=False, help='If True, separate discriminator is used instead of the encoder.')
 
 # encoder
 parser.add_argument('--encoder_use_bn', dest="encoder_use_bn", type=str2bool, default=False, help="Use batch normalization in encoder.")

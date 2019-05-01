@@ -102,15 +102,25 @@ z, z_mean, z_log_var = model.add_sampling(encoder_output, args.sampling, args.sa
 encoder = Model(inputs=encoder_input, outputs=[z_mean, z_log_var])
 generator = Model(inputs=generator_input, outputs=generator_output)
 
+if args.separate_discriminator:
+    discriminator_output = encoder_input
+    for layer in encoder_layers:
+        discriminator_output = layer(discriminator_output)
+    _, zd_mean, zd_log_var = model.add_sampling(discriminator_output, args.sampling, args.sampling_std, args.batch_size, args.latent_dim, args.encoder_wd)
+    discriminator = Model(inputs=encoder_input, outputs=[zd_mean, zd_log_var])
+else:
+    discriminator = encoder
+    zd_mean, zd_log_var = z_mean, z_log_var
+
 xr = generator(z)
 reconst_latent_input = Input(batch_shape=(args.batch_size, args.latent_dim), name='reconst_latent_input')
-zr_mean, zr_log_var = encoder(generator(reconst_latent_input))
-zr_mean_ng, zr_log_var_ng = encoder(tf.stop_gradient(generator(reconst_latent_input)))
+zr_mean, zr_log_var = discriminator(generator(reconst_latent_input))
+zr_mean_ng, zr_log_var_ng = discriminator(tf.stop_gradient(generator(reconst_latent_input)))
 xr_latent = generator(reconst_latent_input)
 
 sampled_latent_input = Input(batch_shape=(args.batch_size, args.latent_dim), name='sampled_latent_input')
-zpp_mean, zpp_log_var = encoder(generator(sampled_latent_input))
-zpp_mean_ng, zpp_log_var_ng = encoder(tf.stop_gradient(generator(sampled_latent_input)))
+zpp_mean, zpp_log_var = discriminator(generator(sampled_latent_input))
+zpp_mean_ng, zpp_log_var_ng = discriminator(tf.stop_gradient(generator(sampled_latent_input)))
 
 global_step = tf.Variable(0, trainable=False)
 
@@ -122,6 +132,10 @@ else:
 
 encoder_optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
 generator_optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
+if args.separate_discriminator:
+    discriminator_optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
+    print('Discriminator')
+    discriminator.summary()
 
 print('Encoder')
 encoder.summary()
@@ -140,6 +154,7 @@ else:
 l_reg_z = train_reg_loss(z_mean, z_log_var)
 l_reg_zr_ng = train_reg_loss(zr_mean_ng, zr_log_var_ng)
 l_reg_zpp_ng = train_reg_loss(zpp_mean_ng, zpp_log_var_ng)
+l_reg_zd = train_reg_loss(zd_mean, zd_log_var)
 
 reconst_loss = K.mean(keras.objectives.mean_squared_error(encoder_input, xr), axis=(1,2))
 
@@ -162,20 +177,26 @@ else:
     margin = tf.Variable(args.m, trainable=False, dtype=tf.float32)
     margin_update_op = tf.assign(margin, margin)
 
-encoder_l_adv = args.reg_lambda * l_reg_z + args.alpha * K.maximum(0., margin - l_reg_zr_ng) + args.alpha * K.maximum(0., margin - l_reg_zpp_ng)
+#encoder_l_adv = args.reg_lambda * l_reg_z + args.alpha * K.maximum(0., margin - l_reg_zr_ng) + args.alpha * K.maximum(0., margin - l_reg_zpp_ng)
+discriminator_loss = args.reg_lambda * l_reg_zd + args.alpha * K.maximum(0., margin - l_reg_zr_ng) + args.alpha * K.maximum(0., margin - l_reg_zpp_ng)
 
 if args.random_images_as_negative:
     zn_mean, zn_log_var = encoder(tf.clip_by_value(tf.abs(tf.random_normal( [args.batch_size] + list(args.original_shape) )), 0.0, 1.0))
     l_reg_noise = train_reg_loss(zn_mean, zn_log_var)
-    encoder_l_adv += args.reg_lambda * K.maximum(0., margin - l_reg_noise)
+    discriminator_loss += args.reg_lambda * K.maximum(0., margin - l_reg_noise)
 
 if args.fixed_gen_as_negative:
     fixed_gen_input = Input(batch_shape=[args.batch_size] + list(args.original_shape), name='fixed_gen_input')
     z_fg_mean, z_fg_log_var = encoder(fixed_gen_input)
     l_reg_fixed_gen = train_reg_loss(z_fg_mean, z_fg_log_var)
-    encoder_l_adv += args.reg_lambda * K.maximum(0., margin - l_reg_fixed_gen)
+    discriminator_loss += args.reg_lambda * K.maximum(0., margin - l_reg_fixed_gen)
     fixed_gen_np = np.zeros([args.fixed_gen_num] + list(args.original_shape))
     fixed_gen_index = 0
+
+if args.separate_discriminator:
+    encoder_l_adv = args.reg_lambda * l_reg_z
+else:
+    encoder_l_adv = discriminator_loss
 
 encoder_loss = encoder_l_adv + args.beta * l_ae + args.gradreg * spectreg_loss
 
@@ -194,6 +215,13 @@ else:
 
 encoder_params = encoder.trainable_weights
 generator_params = generator.trainable_weights
+
+if args.separate_discriminator:
+    discriminator_params = discriminator.trainable_weights
+    discriminator_grads = discriminator_optimizer.compute_gradients(discriminator_loss, var_list=discriminator_params)
+    discriminator_apply_grads_op = discriminator_optimizer.apply_gradients(discriminator_grads)
+    for v in discriminator_params:
+        tf.summary.histogram(v.name, v)
 
 encoder_grads = encoder_optimizer.compute_gradients(encoder_loss, var_list=encoder_params)
 encoder_apply_grads_op = encoder_optimizer.apply_gradients(encoder_grads)
@@ -251,12 +279,16 @@ with tf.Session() as session:
             else:
                 x_fg = fixed_gen_np[fixed_gen_index:(fixed_gen_index+args.batch_size), :, :, :]
             fixed_gen_index += args.batch_size
-
             _ = session.run([encoder_apply_grads_op], feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p, fixed_gen_input: x_fg})
             _ = session.run([generator_apply_grads_op], feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p, fixed_gen_input: x_fg})
         else:
             _ = session.run([encoder_apply_grads_op], feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p})
             _ = session.run([generator_apply_grads_op], feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p})
+        if args.separate_discriminator:
+            if args.fixed_gen_as_negative:
+                _ = session.run([discriminator_apply_grads_op], feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p, fixed_gen_input: x_fg})
+            else:
+                _ = session.run([discriminator_apply_grads_op], feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p})
 
         if global_iters % 10 == 0:
             summary, = session.run([summary_op], feed_dict={encoder_input: x})
@@ -264,14 +296,16 @@ with tf.Session() as session:
 
         if (global_iters % args.frequency) == 0:
             if args.fixed_gen_as_negative:
-                enc_loss_np, enc_l_ae_np, l_reg_z_np, l_reg_zr_ng_np, l_reg_zpp_ng_np, generator_loss_np, dec_l_ae_np, l_reg_zr_np, l_reg_zpp_np, lr_np = \
-                    session.run([encoder_loss, l_ae, l_reg_z, l_reg_zr_ng, l_reg_zpp_ng, generator_loss, l_ae2, l_reg_zr, l_reg_zpp, learning_rate],
+                enc_loss_np, enc_l_ae_np, l_reg_z_np, l_reg_zr_ng_np, l_reg_zpp_ng_np, generator_loss_np, dec_l_ae_np, l_reg_zr_np, l_reg_zpp_np, lr_np, l_reg_zd_np, disc_loss_np = \
+                    session.run([encoder_loss, l_ae, l_reg_z, l_reg_zr_ng, l_reg_zpp_ng, generator_loss, l_ae2, l_reg_zr, l_reg_zpp, learning_rate, l_reg_zd, discriminator_loss],
                                 feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p, fixed_gen_input: x_fg})
             else:
-                enc_loss_np, enc_l_ae_np, l_reg_z_np, l_reg_zr_ng_np, l_reg_zpp_ng_np, generator_loss_np, dec_l_ae_np, l_reg_zr_np, l_reg_zpp_np, lr_np = \
-                    session.run([encoder_loss, l_ae, l_reg_z, l_reg_zr_ng, l_reg_zpp_ng, generator_loss, l_ae2, l_reg_zr, l_reg_zpp, learning_rate],
+                enc_loss_np, enc_l_ae_np, l_reg_z_np, l_reg_zr_ng_np, l_reg_zpp_ng_np, generator_loss_np, dec_l_ae_np, l_reg_zr_np, l_reg_zpp_np, lr_np, l_reg_zd_np, disc_loss_np = \
+                    session.run([encoder_loss, l_ae, l_reg_z, l_reg_zr_ng, l_reg_zpp_ng, generator_loss, l_ae2, l_reg_zr, l_reg_zpp, learning_rate, l_reg_zd, discriminator_loss],
                                 feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p})
 
+            neptune.send_metric('disc_loss', x=global_iters, y=disc_loss_np)
+            neptune.send_metric('l_reg_zd', x=global_iters, y=l_reg_zd_np)
             neptune.send_metric('enc_loss', x=global_iters, y=enc_loss_np)
             neptune.send_metric('l_ae', x=global_iters, y=enc_l_ae_np)
             neptune.send_metric('l_reg_z', x=global_iters, y=l_reg_z_np)
@@ -287,6 +321,7 @@ with tf.Session() as session:
             print('Epoch: {}/{}, iteration: {}/{}'.format(epoch+1, args.nb_epoch, iteration+1, iterations))
             print(' Enc_loss: {}, l_ae:{},  l_reg_z: {}, l_reg_zr_ng: {}, l_reg_zpp_ng: {}, lr={}'.format(enc_loss_np, enc_l_ae_np, l_reg_z_np, l_reg_zr_ng_np, l_reg_zpp_ng_np, lr_np))
             print(' Dec_loss: {}, l_ae:{}, l_reg_zr: {}, l_reg_zpp: {}, lr={}'.format(generator_loss_np, dec_l_ae_np, l_reg_zr_np, l_reg_zpp_np, lr_np))
+            print(' Disc_loss: {}, l_reg_zd: {}, l_reg_zr_ng: {}, l_reg_zpp_ng: {}'.format(disc_loss_np, l_reg_zd_np, l_reg_zr_ng_np, l_reg_zpp_ng_np))
 
         if ((global_iters % iterations_per_epoch == 0) and args.save_latent):
             _ = session.run([test_iterator_init_op_a, test_iterator_init_op_b])
