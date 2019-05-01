@@ -159,7 +159,7 @@ if args.margin_inf or args.m < 0.:
     margin = 10 * tf.math.log(margin_variable + 1)
     # margin = margin_variable
 else:
-    margin = tf.Variable(args.m, trainable=False)
+    margin = tf.Variable(args.m, trainable=False, dtype=tf.float32)
     margin_update_op = tf.assign(margin, margin)
 
 encoder_l_adv = args.reg_lambda * l_reg_z + args.alpha * K.maximum(0., margin - l_reg_zr_ng) + args.alpha * K.maximum(0., margin - l_reg_zpp_ng)
@@ -170,11 +170,12 @@ if args.random_images_as_negative:
     encoder_l_adv += args.reg_lambda * K.maximum(0., margin - l_reg_noise)
 
 if args.fixed_gen_as_negative:
-    z_fg = np.random.normal(loc=0.0, scale=1.0, size=(args.batch_size, args.latent_dim))
     fixed_gen_input = Input(batch_shape=[args.batch_size] + list(args.original_shape), name='fixed_gen_input')
     z_fg_mean, z_fg_log_var = encoder(fixed_gen_input)
     l_reg_fixed_gen = train_reg_loss(z_fg_mean, z_fg_log_var)
     encoder_l_adv += args.reg_lambda * K.maximum(0., margin - l_reg_fixed_gen)
+    fixed_gen_np = np.zeros([args.fixed_gen_num] + list(args.original_shape))
+    fixed_gen_index = 0
 
 encoder_loss = encoder_l_adv + args.beta * l_ae + args.gradreg * spectreg_loss
 
@@ -241,8 +242,15 @@ with tf.Session() as session:
         z_x, x_r, x_p = session.run([z, xr, generator_output], feed_dict={encoder_input: x, generator_input: z_p})
 
         if args.fixed_gen_as_negative:
-            if epoch <= args.fixed_gen_max_epoch: # and global_iters % iterations_per_epoch == 0:
+            if fixed_gen_index + args.batch_size > args.fixed_gen_num:
+                fixed_gen_index = 0
+            if epoch <= args.fixed_gen_max_epoch:
+                z_fg = np.random.normal(loc=0.0, scale=1.0, size=(args.batch_size, args.latent_dim))
                 x_fg = session.run([generator_output], feed_dict={generator_input: z_fg})[0]
+                fixed_gen_np[fixed_gen_index:(fixed_gen_index+args.batch_size), :, :, :] = x_fg
+            else:
+                x_fg = fixed_gen_np[fixed_gen_index:(fixed_gen_index+args.batch_size), :, :, :]
+            fixed_gen_index += args.batch_size
 
             _ = session.run([encoder_apply_grads_op], feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p, fixed_gen_input: x_fg})
             _ = session.run([generator_apply_grads_op], feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p, fixed_gen_input: x_fg})
