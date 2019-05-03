@@ -284,6 +284,7 @@ with tf.Session() as session:
         else:
             _ = session.run([encoder_apply_grads_op], feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p})
             _ = session.run([generator_apply_grads_op], feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p})
+
         if args.separate_discriminator:
             if args.fixed_gen_as_negative:
                 _ = session.run([discriminator_apply_grads_op], feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p, fixed_gen_input: x_fg})
@@ -328,6 +329,10 @@ with tf.Session() as session:
             _ = utils.save_output(session, '_'.join([args.prefix, args.dataset]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: fixed_next}), OrderedDict({"train_mean": z_mean, "train_log_var": z_log_var}), args.latent_cloud_size)
             a_result_dict = utils.save_output(session, '_'.join([args.prefix, args.test_dataset_a]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next_a}), OrderedDict({"test_mean": z_mean, "test_log_var": z_log_var, "test_reconstloss": reconst_loss}), args.test_size)
             b_result_dict = utils.save_output(session, '_'.join([args.prefix, args.test_dataset_b]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next_b}), OrderedDict({"test_mean": z_mean, "test_log_var": z_log_var, "test_reconstloss": reconst_loss}), args.test_size)
+
+        if (global_iters % iterations_per_epoch == 0) and args.save_fixed_gen and ((epoch + 1)  % 10 == 0):
+            z_fixed_gen = tf.random_normal([args.batch_size, args.latent_dim])
+            _ = utils.save_output(session, '_'.join([args.prefix, args.dataset]), epoch, global_iters, args.batch_size, OrderedDict({generator_input: z_fixed_gen}), OrderedDict({"fixed_gen": generator_output}), args.fixed_gen_num)
 
         if ((global_iters % iterations_per_epoch == 0) and args.save_latent and (epoch + 1) % 10 == 0):
 
