@@ -190,8 +190,12 @@ if args.fixed_gen_as_negative:
     z_fg_mean, z_fg_log_var = encoder(fixed_gen_input)
     l_reg_fixed_gen = train_reg_loss(z_fg_mean, z_fg_log_var)
     discriminator_loss += args.reg_lambda * K.maximum(0., margin - l_reg_fixed_gen)
-    fixed_gen_np = np.zeros([args.fixed_gen_num] + list(args.original_shape))
     fixed_gen_index = 0
+    if args.fixed_negatives_npy is not None:
+        fixed_gen_np = np.load(args.fixed_negatives_npy)
+        print('Fixed negatives loaded from {}'.format(args.fixed_negatives_npy))
+    else:
+        fixed_gen_np = np.zeros([args.fixed_gen_num] + list(args.original_shape))
 
 if args.separate_discriminator:
     encoder_l_adv = args.reg_lambda * l_reg_z
@@ -272,7 +276,7 @@ with tf.Session() as session:
         if args.fixed_gen_as_negative:
             if fixed_gen_index + args.batch_size > args.fixed_gen_num:
                 fixed_gen_index = 0
-            if epoch <= args.fixed_gen_max_epoch:
+            if epoch <= args.fixed_gen_max_epoch and args.fixed_negatives_npy is None:
                 z_fg = np.random.normal(loc=0.0, scale=1.0, size=(args.batch_size, args.latent_dim))
                 x_fg = session.run([generator_output], feed_dict={generator_input: z_fg})[0]
                 fixed_gen_np[fixed_gen_index:(fixed_gen_index+args.batch_size), :, :, :] = x_fg
