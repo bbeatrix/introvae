@@ -367,7 +367,7 @@ with tf.Session() as session:
 
             if args.fixed_gen_as_negative:
                 print('Save fixed generated images used as negative samples.')
-                fixed_gen_as_neg = utils.plot_images(x_fg, n_x, n_y, "{}_fixed_gen_as_negatives_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
+                fixed_gen_as_neg = utils.plot_images(np.transpose(x_fg, (0, 2, 3, 1)), n_x, n_y, "{}_fixed_gen_as_negatives_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
                 neptune.send_image('fixed_gen_as_negatives', fixed_gen_as_neg)
 
 
