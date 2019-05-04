@@ -189,7 +189,7 @@ if args.fixed_gen_as_negative:
     fixed_gen_input = Input(batch_shape=[args.batch_size] + list(args.original_shape), name='fixed_gen_input')
     z_fg_mean, z_fg_log_var = encoder(fixed_gen_input)
     l_reg_fixed_gen = train_reg_loss(z_fg_mean, z_fg_log_var)
-    discriminator_loss += args.reg_lambda * K.maximum(0., margin - l_reg_fixed_gen)
+    discriminator_loss += args.alpha_fixed_gen * K.maximum(0., margin - l_reg_fixed_gen)
     fixed_gen_index = 0
     if args.fixed_negatives_npy is not None:
         fixed_gen_np = np.load(args.fixed_negatives_npy)
