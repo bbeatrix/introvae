@@ -301,9 +301,10 @@ with tf.Session() as session:
 
         if (global_iters % args.frequency) == 0:
             if args.fixed_gen_as_negative:
-                enc_loss_np, enc_l_ae_np, l_reg_z_np, l_reg_zr_ng_np, l_reg_zpp_ng_np, generator_loss_np, dec_l_ae_np, l_reg_zr_np, l_reg_zpp_np, lr_np, l_reg_zd_np, disc_loss_np = \
-                    session.run([encoder_loss, l_ae, l_reg_z, l_reg_zr_ng, l_reg_zpp_ng, generator_loss, l_ae2, l_reg_zr, l_reg_zpp, learning_rate, l_reg_zd, discriminator_loss],
+                enc_loss_np, enc_l_ae_np, l_reg_z_np, l_reg_zr_ng_np, l_reg_zpp_ng_np, generator_loss_np, dec_l_ae_np, l_reg_zr_np, l_reg_zpp_np, lr_np, l_reg_zd_np, disc_loss_np, l_reg_z_fixed_gen_np = \
+                    session.run([encoder_loss, l_ae, l_reg_z, l_reg_zr_ng, l_reg_zpp_ng, generator_loss, l_ae2, l_reg_zr, l_reg_zpp, learning_rate, l_reg_zd, discriminator_loss, l_reg_fixed_gen],
                                 feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p, fixed_gen_input: x_fg})
+                neptune.send_metric('l_reg_fixed_gen', x=global_iters, y=l_reg_z_fixed_gen_np)
             else:
                 enc_loss_np, enc_l_ae_np, l_reg_z_np, l_reg_zr_ng_np, l_reg_zpp_ng_np, generator_loss_np, dec_l_ae_np, l_reg_zr_np, l_reg_zpp_np, lr_np, l_reg_zd_np, disc_loss_np = \
                     session.run([encoder_loss, l_ae, l_reg_z, l_reg_zr_ng, l_reg_zpp_ng, generator_loss, l_ae2, l_reg_zr, l_reg_zpp, learning_rate, l_reg_zd, discriminator_loss],
@@ -363,6 +364,11 @@ with tf.Session() as session:
             neptune.send_image('reconstruction', rec_img)
             neptune.send_image('test_a', test_a_img)
             neptune.send_image('test_b', test_b_img)
+
+            if args.fixed_gen_as_negatives:
+                print('Save fixed generated images used as negative samples.')
+                fixed_gen_as_neg = utils.plot_images(x_fg, n_x, n_y, "{}_fixed_gen_as_negatives_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
+                neptune.send_image('fixed_gen_as_negatives', fixed_gen_as_neg)
 
 
         if False and ((global_iters % iterations_per_epoch == 0) and ((epoch + 1) % 10 == 0)):
