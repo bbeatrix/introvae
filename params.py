@@ -28,6 +28,9 @@ parser.add_argument('--test_dataset_b', dest='test_dataset_b', default='svhn_cro
 parser.add_argument('--margin_inf', dest="margin_inf", type=str2bool, default=False, help="If True, the margin is increasing intead of being fixed value")
 parser.add_argument('--m', dest="m", type=int, default=120, help="Value of model hyperparameter m.")
 parser.add_argument('--alpha', dest="alpha", type=float, default=0.25, help="Value of model hyperparameter alpha.")
+parser.add_argument('--alpha_reconstructed', dest="alpha_reconstructed", type=float, default=0.5, help="Value of model hyperparameter alpha searately for loss terms from reconstructed images.")
+parser.add_argument('--alpha_generated', dest="alpha_generated", type=float, default=0.5, help="Value of model hyperparameter alpha separately for loss terms from generated images.")
+
 parser.add_argument('--beta', dest="beta", type=float, default=0.05, help="Value of model hyperparameter beta.")
 
 parser.add_argument('--alpha_fixed_gen', dest="alpha_fixed_gen", type=float, default=1.0, help="Weight of loss from fixed generated images as negatives")

@@ -178,7 +178,7 @@ else:
     margin_update_op = tf.assign(margin, margin)
 
 #encoder_l_adv = args.reg_lambda * l_reg_z + args.alpha * K.maximum(0., margin - l_reg_zr_ng) + args.alpha * K.maximum(0., margin - l_reg_zpp_ng)
-discriminator_loss = args.reg_lambda * l_reg_zd + args.alpha * K.maximum(0., margin - l_reg_zr_ng) + args.alpha * K.maximum(0., margin - l_reg_zpp_ng)
+discriminator_loss = args.reg_lambda * l_reg_zd + args.alpha_reconstructed * K.maximum(0., margin - l_reg_zr_ng) + args.alpha_generated * K.maximum(0., margin - l_reg_zpp_ng)
 
 if args.random_images_as_negative:
     zn_mean, zn_log_var = encoder(tf.clip_by_value(tf.abs(tf.random_normal( [args.batch_size] + list(args.original_shape) )), 0.0, 1.0))
@@ -208,7 +208,7 @@ l_reg_zr = train_reg_loss(zr_mean, zr_log_var)
 l_reg_zpp = train_reg_loss(zpp_mean, zpp_log_var)
 
 if args.generator_adversarial_loss:
-    generator_l_adv = args.alpha * l_reg_zr + args.alpha * l_reg_zpp
+    generator_l_adv = args.alpha_reconstructed * l_reg_zr + args.alpha_generated * l_reg_zpp
     generator_loss = generator_l_adv + args.beta * l_ae2 + args.gradreg * spectreg_loss
 else:
     generator_loss = args.beta * l_ae2 + args.gradreg * spectreg_loss
