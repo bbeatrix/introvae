@@ -120,6 +120,6 @@ def augment_transforms(x):
     #x = tf.image.random_saturation(x, 0.6, 1.6)
     x = tf.image.random_brightness(x, 0.05)
     x = tf.image.random_contrast(x, 0.7, 1.3)
-    x = tf.image.rot90(x, tf.random_uniform(shape=[], minval=0, maxval=4, dtype=tf.int32))
+    x = tf.contrib.image.rotate(x, tf.random_uniform(shape=[],minval=0., maxval=np.pi/2, dtype=tf.float32))
     x = tf.contrib.image.translate(x, tf.random_uniform([2,], minval=0., maxval=4., dtype=tf.float32), interpolation='NEAREST')
     return x
