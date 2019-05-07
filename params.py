@@ -27,13 +27,11 @@ parser.add_argument('--test_dataset_b', dest='test_dataset_b', default='svhn_cro
 # model hyperparameters
 parser.add_argument('--margin_inf', dest="margin_inf", type=str2bool, default=False, help="If True, the margin is increasing intead of being fixed value")
 parser.add_argument('--m', dest="m", type=int, default=120, help="Value of model hyperparameter m.")
-parser.add_argument('--alpha', dest="alpha", type=float, default=0.25, help="Value of model hyperparameter alpha.")
-parser.add_argument('--alpha_reconstructed', dest="alpha_reconstructed", type=float, default=0.5, help="Value of model hyperparameter alpha searately for loss terms from reconstructed images.")
-parser.add_argument('--alpha_generated', dest="alpha_generated", type=float, default=0.5, help="Value of model hyperparameter alpha separately for loss terms from generated images.")
-
-parser.add_argument('--beta', dest="beta", type=float, default=0.05, help="Value of model hyperparameter beta.")
-
+parser.add_argument('--alpha', dest="alpha", type=float, default=None, help="Value of model hyperparameter alpha.")
+parser.add_argument('--alpha_reconstructed', dest="alpha_reconstructed", type=float, default=0.25, help="Value of model hyperparameter alpha searately for loss terms from reconstructed images.")
+parser.add_argument('--alpha_generated', dest="alpha_generated", type=float, default=0.25, help="Value of model hyperparameter alpha separately for loss terms from generated images.")
 parser.add_argument('--alpha_fixed_gen', dest="alpha_fixed_gen", type=float, default=1.0, help="Weight of loss from fixed generated images as negatives")
+parser.add_argument('--beta', dest="beta", type=float, default=0.05, help="Value of model hyperparameter beta.")
 parser.add_argument('--reg_lambda', dest="reg_lambda", type=float, default=1.0, help="Weight of vae loss.")
 parser.add_argument('--use_augmented_variance_loss', dest="use_augmented_variance_loss", type=str2bool, default=False, help="If true, augmented variance loss is used instead of standard vae loss.")
 parser.add_argument('--random_images_as_negative', dest="random_images_as_negative", default=False, type=str2bool, help="Use random images as negative samples.")
@@ -95,4 +93,6 @@ def getArgs():
     args.prefix = "/".join(prefix_parts)
 
     args.shape = tuple(map(int, str(args.shape).split(",")))
+    if args.alpha is not None:
+        args.alpha_reconstructed, args.alpha_generated = args.alpha, args.alpha
     return args
