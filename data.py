@@ -94,13 +94,16 @@ def create_cifar10_unsup_dataset(batch_size, train_limit, test_limit, fixed_limi
     return (train_tuple, test_tuple, fixed_tuple)
 
 
-def get_dataset(dataset, split, batch_size, limit):
+def get_dataset(dataset, split, batch_size, limit, augment):
     ds = tfds.load(name=dataset, split=split) \
         .take((limit // batch_size) * batch_size) \
         .map(lambda x: x['image']) \
-        .map(lambda x: tf.transpose(x, [2, 0, 1])) \
         .map(lambda x: tf.cast(x, tf.float32)) \
-        .map(lambda x: x / 255.) \
+        .map(lambda x: x / 255.)
+    if augment:
+        ds = ds.map(lambda x: augment_transforms(x))
+    ds = ds.map(lambda x: tf.clip_by_value(x, 0, 1)) \
+        .map(lambda x: tf.transpose(x, [2, 0, 1])) \
         .batch(batch_size) \
         .repeat() \
         .prefetch(2)
@@ -110,5 +113,13 @@ def get_dataset(dataset, split, batch_size, limit):
     return ds, iterator, iterator_init_op, get_next
 
 
-
-
+def augment_transforms(x):
+    x = tf.image.random_flip_left_right(x)
+    x = tf.image.random_flip_up_down(x)
+    #x = tf.image.random_hue(x, 0.08)
+    #x = tf.image.random_saturation(x, 0.6, 1.6)
+    x = tf.image.random_brightness(x, 0.05)
+    x = tf.image.random_contrast(x, 0.7, 1.3)
+    x = tf.image.rot90(x, tf.random_uniform(shape=[], minval=0, maxval=4, dtype=tf.int32))
+    x = tf.contrib.image.translate(x, tf.random_uniform([2,], minval=0., maxval=4., dtype=tf.float32), interpolation='NEAREST')
+    return x

@@ -61,10 +61,10 @@ iterations_per_epoch = args.train_size // args.batch_size
 #    fixed_dataset, fixed_iterator, fixed_iterator_init_op, fixed_next \
 #         = data.create_dataset(os.path.join(data_path, "train/*.npy"), args.batch_size, args.latent_cloud_size)
 
-train_data, train_iterator, train_iterator_init_op, train_next = data.get_dataset(args.dataset, tfds.Split.TRAIN, args.batch_size, args.train_size)
-fixed_data, fixed_iterator, fixed_iterator_init_op, fixed_next = data.get_dataset(args.dataset, tfds.Split.TRAIN, args.batch_size, args.latent_cloud_size)
-test_data_a, test_iterator_a, test_iterator_init_op_a, test_next_a = data.get_dataset(args.test_dataset_a, tfds.Split.TEST, args.batch_size, args.test_size)
-test_data_b, test_iterator_b, test_iterator_init_op_b, test_next_b = data.get_dataset(args.test_dataset_b, tfds.Split.TEST, args.batch_size, args.test_size)
+train_data, train_iterator, train_iterator_init_op, train_next = data.get_dataset(args.dataset, tfds.Split.TRAIN, args.batch_size, args.train_size, args.augment)
+fixed_data, fixed_iterator, fixed_iterator_init_op, fixed_next = data.get_dataset(args.dataset, tfds.Split.TRAIN, args.batch_size, args.latent_cloud_size, args.augment)
+test_data_a, test_iterator_a, test_iterator_init_op_a, test_next_a = data.get_dataset(args.test_dataset_a, tfds.Split.TEST, args.batch_size, args.test_size, args.augment)
+test_data_b, test_iterator_b, test_iterator_init_op_b, test_next_b = data.get_dataset(args.test_dataset_b, tfds.Split.TEST, args.batch_size, args.test_size, args.augment)
 
 args.n_channels = 3 if args.color else 1
 args.original_shape = (args.n_channels, ) + args.shape
