@@ -89,10 +89,7 @@ def generator_layers_dcgan_univ(image_size, image_channels, base_channels, bn_al
             size = size * 2
         idx += 1
     layers.append(Conv2D(image_channels, (kernel, kernel), use_bias=False, strides=(1, 1), padding=border_mode, kernel_regularizer=l2(wd)))
-    if use_bn:
-        layers.append(BatchNormalization(axis=1))
     layers.append(Activation("sigmoid", name="generator_{}".format(idx)))
-
 
     return layers
 
