@@ -140,6 +140,10 @@ global_step = tf.Variable(0, trainable=False)
 starter_learning_rate = args.lr
 if args.lr_schedule == 'exponential':
     learning_rate = tf.train.exponential_decay(starter_learning_rate, global_step, 500, 0.96, staircase=True)
+elif args.lr_schedule == 'piecewise_constant':
+    boundaries = [100000,150000]
+    values = [starter_learning_rate, 0.1*starter_learning_rate, 0.01*starter_learning_rate]
+    learning_rate = tf.train.piecewise_constant(global_step, boundaries, values)
 else:
     learning_rate = tf.constant(args.lr)
 
@@ -192,6 +196,7 @@ else:
 
 #encoder_l_adv = args.reg_lambda * l_reg_z + args.alpha * K.maximum(0., margin - l_reg_zr_ng) + args.alpha * K.maximum(0., margin - l_reg_zpp_ng)
 discriminator_loss = args.reg_lambda * l_reg_zd + args.alpha_reconstructed * K.maximum(0., margin - l_reg_zr_ng) + args.alpha_generated * K.maximum(0., margin - l_reg_zpp_ng)
+#discriminator_loss = args.reg_lambda * l_reg_zd + args.alpha_reconstructed * (1.0 / l_reg_zr_ng) + args.alpha_generated * (1.0 / l_reg_zpp_ng)
 
 if args.random_images_as_negative:
     zn_mean, zn_log_var = encoder(tf.clip_by_value(tf.abs(tf.random_normal( [args.batch_size] + list(args.original_shape) )), 0.0, 1.0))
@@ -284,6 +289,7 @@ with tf.Session() as session:
 
         x, _, margin_np = session.run([train_next, margin_update_op, margin])
         z_p = np.random.normal(loc=0.0, scale=1.0, size=(args.batch_size, args.latent_dim))
+
         z_x, x_r, x_p = session.run([z, xr, generator_output], feed_dict={encoder_input: x, generator_input: z_p})
 
         if args.fixed_gen_as_negative:

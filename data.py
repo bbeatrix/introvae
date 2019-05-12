@@ -111,11 +111,12 @@ def get_dataset(dataset, split, batch_size, limit, augment=False, normal_class=-
     ds = ds.take((limit // batch_size) * batch_size) \
         .map(lambda x: x['image']) \
         .map(lambda x: tf.cast(x, tf.float32)) \
-        .map(lambda x: x / 255.)
+        .map(lambda x: x / 255.) \
+        .map(lambda x: 2.0*x - 1.0)
     if augment:
-        ds = ds.map(lambda x: augment_transforms(x))
-    ds = ds.map(lambda x: tf.clip_by_value(x, 0, 1)) \
-        .map(lambda x: tf.transpose(x, [2, 0, 1])) \
+        ds = ds.map(lambda x: augment_transforms(x)) \
+               .map(lambda x: tf.clip_by_value(x, -1, 1))
+    ds = ds.map(lambda x: tf.transpose(x, [2, 0, 1])) \
         .batch(batch_size) \
         .repeat() \
         .prefetch(2)

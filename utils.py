@@ -13,6 +13,8 @@ def plot_images(data, n_x, n_y, name, text=None):
     n = len(data)
     if n > n_x*n_y: n = n_x * n_y
 
+    data = (data + 1.0) / 2.0
+
     if channel == 1:
         mode = "L"
         data = data[:,:,:,0]
