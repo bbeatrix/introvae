@@ -443,4 +443,8 @@ with tf.Session() as session:
         if (global_iters % iterations_per_epoch == 0) and ((epoch + 1) % 10 == 0):
             np.savez("{}_neglog_likelihoods_epoch{}_iter{}".format(prefix, epoch+1, global_iters), labels=np.concatenate([np.zeros_like(neglog_likelihood_a), np.ones_like(neglog_likelihood_b)]), neglog_likelihoods=np.concatenate([neglog_likelihood_a, neglog_likelihood_b]))
 
-neptune.stop()
+    neptune.stop()
+    if args.model_path is not None:
+        saved = saver.save(session, args.model_path + "/model", global_step=global_iters)
+        print('Saved model to ' + saved)
+
