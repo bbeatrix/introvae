@@ -11,7 +11,7 @@ test_dataset_a='cifar10'
 test_dataset_b='cifar10'
 use_augmented_variance_loss=False
 seed=0
-normal_class=1
+normal_class=0
 model_architecture='dcgan_univ'
 lr_schedule='constant'
 
