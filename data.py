@@ -99,8 +99,6 @@ def get_dataset(dataset, split, batch_size, limit, augment=False, normal_class=-
 
     if split == tfds.Split.TRAIN:
         ds = ds.shuffle(100000)
-    else:
-        ds = ds.shuffle(100000)
 
     if normal_class != -1:
         if outliers:

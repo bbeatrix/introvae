@@ -439,4 +439,8 @@ with tf.Session() as session:
 
             neptune.send_metric('auc', x=global_iters, y=auc_neglog_likelihood)
 
+
+        if (global_iters % iterations_per_epoch == 0) and ((epoch + 1) % 10 == 0):
+            np.savez("{}_likelihoods_epoch{}_iter{}".format(prefix, epoch+1, global_iters), labels=np.concatenate([np.zeros_like(neglog_likelihood_a), np.ones_like(neglog_likelihood_b)]), neglog_likelihoods=np.concatenate([neglog_likelihood_a, neglog_likelihood_b]))
+
 neptune.stop()
