@@ -59,7 +59,7 @@ parser.add_argument('--resnet_wideness', dest="resnet_wideness", default=1, help
 parser.add_argument('--model_architecture', dest="model_architecture", type=str, default="introvae", help="Model architecture (introvae/deepsvdd/dcgan)")
 parser.add_argument('--separate_discriminator', dest="separate_discriminator", type=str2bool, default=False, help='If True, separate discriminator is used instead of the encoder.')
 parser.add_argument('--trained_gamma', dest="trained_gamma", type=str2bool, default=False, help="If True, variance on generator is trained.")
-parser.add_argument('--inital_log_gamma', dest="initial_log_gamma", type=float, default=0.0, help="Initial values of log gamma.")
+parser.add_argument('--initial_log_gamma', dest="initial_log_gamma", type=float, default=0.0, help="Initial values of log gamma.")
 
 # encoder
 parser.add_argument('--encoder_use_bn', dest="encoder_use_bn", type=str2bool, default=False, help="Use batch normalization in encoder.")

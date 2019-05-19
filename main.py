@@ -125,7 +125,10 @@ for layer in generator_layers:
 
 z, z_mean, z_log_var = model.add_sampling(encoder_output, args.sampling, args.sampling_std, args.batch_size, args.latent_dim, args.encoder_wd)
 
-log_gamma = tf.get_variable('log_gamma', [], tf.float32, tf.constant_initializer(value=args.initial_log_gamma))
+if args.trained_gamma:
+    log_gamma = tf.get_variable('log_gamma', [], tf.float32, tf.constant_initializer(value=args.initial_log_gamma))
+else:
+    log_gamma = tf.constant(0.0)
 gamma = tf.exp(log_gamma)
 
 encoder = Model(inputs=encoder_input, outputs=[z_mean, z_log_var])
@@ -290,7 +293,8 @@ joint_loss = generator_loss + encoder_loss
 
 encoder_params = encoder.trainable_weights
 generator_params = generator.trainable_weights
-generator_params.append(log_gamma)
+if args.trained_gamma:
+    generator_params.append(log_gamma)
 if args.aux:
     encoder_params.extend(aux_dense.trainable_weights)
 
@@ -369,6 +373,11 @@ with tf.Session() as session:
             aux_y_np = to_categorical(transformations_inds)
             x_transformed = transformer.transform_batch(np.repeat(x[0:4], transformer.n_transforms, axis=0), transformations_inds)
 
+        train_feed_dict = {encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p}
+        if args.aux:
+            train_feed_dict[aux_input] = x_transformed[:args.batch_size]
+            train_feed_dict[aux_y] = aux_y_np[:args.batch_size]
+
         if args.fixed_gen_as_negative:
             if fixed_gen_index + args.batch_size > args.fixed_gen_num:
                 fixed_gen_index = 0
@@ -387,11 +396,7 @@ with tf.Session() as session:
             #    #x, _, margin_np = session.run([train_next, margin_update_op, margin])
             #    #z_p = np.random.normal(loc=0.0, scale=1.0, size=(args.batch_size, args.latent_dim))
             #    #z_x, x_r, x_p = session.run([z, xr, generator_output], feed_dict={encoder_input: x, generator_input: z_p})
-            train_feed_dict = {encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p}
-            if args.aux:
-                train_feed_dict[aux_input] = x_transformed[:args.batch_size]
-                train_feed_dict[aux_y] = aux_y_np[:args.batch_size]
-
+            
             _ = session.run([encoder_apply_grads_op], feed_dict=train_feed_dict)
             #_ = session.run([encoder1_apply_grads_op], feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p, aux_input: x_transformed[:args.batch_size], aux_y: aux_y_np[:args.batch_size]})
             #_ = session.run([encoder2_apply_grads_op], feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p, aux_input: x_transformed[:args.batch_size], aux_y: aux_y_np[:args.batch_size]})
