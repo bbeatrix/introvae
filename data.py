@@ -95,7 +95,12 @@ def create_cifar10_unsup_dataset(batch_size, train_limit, test_limit, fixed_limi
 
 
 def get_dataset(dataset, split, batch_size, limit, augment=False, normal_class=-1, outliers=False):
-    ds = tfds.load(name=dataset, split=split)
+
+    if dataset == 'tiny-imagenet-200':
+        filename_dataset = tf.data.Dataset.list_files("~/datasets/tiny-imagenet-200/train/**/images/*.JPEG")
+        ds = filename_dataset.map(lambda x: tf.decode_jpg(tf.read_file(x)))
+    else:
+        ds = tfds.load(name=dataset, split=split)
 
     if split == tfds.Split.TRAIN:
         ds = ds.shuffle(100000)

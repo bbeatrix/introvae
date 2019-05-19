@@ -24,6 +24,7 @@ parser.add_argument('--augment', dest='augment', default=False, type=str2bool, h
 parser.add_argument('--test_dataset_a', dest='test_dataset_a', default='cifar10', type=str, help="Test dataset a - for comparison on different test datasets")
 parser.add_argument('--test_dataset_b', dest='test_dataset_b', default='svhn_cropped', type=str, help="Test dataset b - for comparison on different test datasets")
 parser.add_argument('--num_classes', dest="num_classes", default=10, type=int, help="Number of classes in dataset.")
+parser.add_argument('--neg_dataset', dest='neg_dataset', default=None, type=str, help="Negative samples dataset")
 
 # model hyperparameters
 parser.add_argument('--margin_inf', dest="margin_inf", type=str2bool, default=False, help="If True, the margin is increasing intead of being fixed value")

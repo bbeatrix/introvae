@@ -82,6 +82,11 @@ fixed_data, fixed_iterator, fixed_iterator_init_op, fixed_next = data.get_datase
 test_data_a, test_iterator_a, test_iterator_init_op_a, test_next_a = data.get_dataset(args.test_dataset_a, tfds.Split.TEST, args.batch_size, test_size_a, args.augment, args.normal_class, outliers=False)
 test_data_b, test_iterator_b, test_iterator_init_op_b, test_next_b = data.get_dataset(args.test_dataset_b, tfds.Split.TEST, args.batch_size, test_size_b, args.augment, args.normal_class, outliers=True)
 
+if args.neg_dataset is not None:
+    neg_data, neg_iterator, neg_iterator_init_op, neg_next = data.get_dataset(args.neg_dataset, tfds.Split.TRAIN, args.batch_size, train_size, args.augment)
+
+
+
 args.n_channels = 3 if args.color else 1
 args.original_shape = (args.n_channels, ) + args.shape
 
@@ -440,8 +445,6 @@ with tf.Session() as session:
             neptune.send_metric('enc_loss', x=global_iters, y=enc_loss_np)
             neptune.send_metric('l_ae', x=global_iters, y=enc_l_ae_np)
             neptune.send_metric('l_reg_z', x=global_iters, y=l_reg_z_np)
-            neptune.send_metric('l_reg_zr_ng', x=global_iters, y=l_reg_zr_ng_np)
-            neptune.send_metric('l_reg_zpp_ng', x=global_iters, y=l_reg_zpp_ng_np)
             neptune.send_metric('generator_loss', x=global_iters, y=generator_loss_np)
             neptune.send_metric('dec_l_ae', x=global_iters, y=dec_l_ae_np)
             neptune.send_metric('l_reg_zr', x=global_iters, y=l_reg_zr_np)
