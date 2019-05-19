@@ -48,6 +48,7 @@ parser.add_argument('--lr', dest="lr", default="0.001", type=float, help="Learni
 parser.add_argument('--batch_size', dest="batch_size", default=200, type=int, help="Batch size.")
 parser.add_argument('--nb_epoch', dest="nb_epoch", type=int, default=200, help="Number of epochs.")
 parser.add_argument('--verbose', dest="verbose", type=int, default=2, help="Logging verbosity: 0-silent, 1-verbose, 2-perEpoch (default).")
+parser.add_argument('--aux', dest="aux", type=str2bool, default=False, help="Use auxiliary training objective of predicting geometric transformations.")
 
 # architecture
 parser.add_argument('--sampling', dest="sampling", type=str2bool, default=True, help="Use sampling.")
@@ -57,6 +58,8 @@ parser.add_argument('--base_filter_num', dest="base_filter_num", default=32, typ
 parser.add_argument('--resnet_wideness', dest="resnet_wideness", default=1, help="Wideness of resnet model (1-wide first block has 16 filters).")
 parser.add_argument('--model_architecture', dest="model_architecture", type=str, default="introvae", help="Model architecture (introvae/deepsvdd/dcgan)")
 parser.add_argument('--separate_discriminator', dest="separate_discriminator", type=str2bool, default=False, help='If True, separate discriminator is used instead of the encoder.')
+parser.add_argument('--trained_gamma', dest="trained_gamma", type=str2bool, default=False, help="If True, variance on generator is trained.")
+parser.add_argument('--inital_log_gamma', dest="initial_log_gamma", type=float, default=0.0, help="Initial values of log gamma.")
 
 # encoder
 parser.add_argument('--encoder_use_bn', dest="encoder_use_bn", type=str2bool, default=False, help="Use batch normalization in encoder.")

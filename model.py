@@ -47,7 +47,12 @@ def encoder_layers_dcgan_univ(image_size, image_channels, base_channels, bn_allo
 
         if use_bn:
             layers.append(BatchNormalization(axis=1))
-        layers.append(Activation(activation, name="encoder_{}".format(idx)))
+        if activation == "relu":
+            #layers.append(LeakyReLU(name="encoder_{}".format(idx)))    
+            layers.append(Activation(activation, name="encoder_{}".format(idx)))
+
+        else:
+            layers.append(Activation(activation, name="encoder_{}".format(idx)))
         idx += 1
     layers.append(Flatten())
     return layers
@@ -82,7 +87,11 @@ def generator_layers_dcgan_univ(image_size, image_channels, base_channels, bn_al
         layers.append(Conv2D(channels, (kernel, kernel), use_bias=False, strides=(1, 1), padding=border_mode, kernel_regularizer=l2(wd)))
         if use_bn:
             layers.append(BatchNormalization(axis=1))
-        layers.append(Activation(activation, name="generator_{}".format(idx)))
+        if activation == "relu":
+            #layers.append(LeakyReLU(name="generator_{}".format(idx)))    
+            layers.append(Activation(activation, name="generator_{}".format(idx)))
+        else:
+            layers.append(Activation(activation, name="generator_{}".format(idx)))
 
         if image_size[0] != size:
             layers.append(UpSampling2D((stride, stride)))
@@ -202,6 +211,7 @@ def encoder_layers_introvae(image_size, base_channels, bn_allowed):
 def generator_layers_introvae(image_size, base_channels, bn_allowed):
     layers = []
     layers.append(Dense(512 * 4 * 4, name='generator_dense'))
+    #layers.append(LeakyReLU())
     layers.append(Activation('relu'))
     layers.append(Reshape((512, 4, 4), name='generator_reshape'))
     layers.append(residual_block('generator', kernels=[(3, 3), (3, 3)], filters=512, block=1, bn_allowed=bn_allowed))
@@ -241,18 +251,21 @@ def residual_block(model_type, kernels, filters, block, bn_allowed, stage='a', l
         conv_name_base = model_type + '_resblock_conv_' + stage + str(block) + '_branch_'
 
         if K.int_shape(input_tensor[-1]) != filters[0]:
-            input_tensor = Conv2D(filters[0], (1, 1), padding='same', kernel_initializer='glorot_normal', name=conv_name_base + str('00'), data_format='channels_first')(input_tensor)
+            input_tensor = Conv2D(filters[0], (1, 1), padding='same', kernel_initializer='he_normal', name=conv_name_base + str('00'), data_format='channels_first')(input_tensor)
             if bn_allowed:
                 input_tensor = BatchNormalization(axis=bn_axis, name=bn_name_base + str('00'))(input_tensor)
             input_tensor = Activation('relu')(input_tensor)
+            #input_tensor = LeakyReLU()(input_tensor)
 
         x = input_tensor
         for idx in range(len(filters)):
             x = Conv2D(filters[idx], kernels[idx], padding='same', kernel_initializer='he_normal', name=conv_name_base + str(idx), data_format='channels_first')(x)
             if bn_allowed:
                 x = BatchNormalization(axis=bn_axis, name=bn_name_base + str(idx))(x)
-            if idx <= len(filters) - 1:
+            if idx < len(filters) - 1:
+                #x = LeakyReLU()(x)
                 x = Activation('relu')(x)
+
 
         x = Add(name=model_type + '_resblock_add_' + stage + str(block))([x, input_tensor])
         x = Activation(last_activation)(x)
