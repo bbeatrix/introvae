@@ -125,7 +125,7 @@ for layer in generator_layers:
 
 z, z_mean, z_log_var = model.add_sampling(encoder_output, args.sampling, args.sampling_std, args.batch_size, args.latent_dim, args.encoder_wd)
 
-log_gamma = tf.get_variable('log_gamma', [], tf.float32, tf.constant(args.initial_log_gamma))
+log_gamma = tf.get_variable('log_gamma', [], tf.float32, tf.constant_initializer(value=args.initial_log_gamma))
 gamma = tf.exp(log_gamma)
 
 encoder = Model(inputs=encoder_input, outputs=[z_mean, z_log_var])
