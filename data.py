@@ -4,6 +4,7 @@ from keras.datasets import cifar10
 from tensorflow.keras import backend as K
 from keras.preprocessing.image import ImageDataGenerator
 import tensorflow_datasets as tfds
+import os
 
 K.set_image_data_format('channels_first')
 
@@ -96,9 +97,12 @@ def create_cifar10_unsup_dataset(batch_size, train_limit, test_limit, fixed_limi
 
 def get_dataset(dataset, split, batch_size, limit, augment=False, normal_class=-1, outliers=False):
 
+    from glob import glob
     if dataset == 'tiny-imagenet-200':
-        filename_dataset = tf.data.Dataset.list_files("~/datasets/tiny-imagenet-200/train/**/images/*.JPEG")
-        ds = filename_dataset.map(lambda x: tf.decode_jpg(tf.read_file(x)))
+        directory = "/home/csadrian/datasets/tiny-imagenet-200/train/*/"
+        dirs = [d + "images/*.JPEG" for d in glob(directory)]
+        ds = tf.data.Dataset.list_files(dirs)
+        ds = ds.map(lambda x: {'image':tf.image.resize_images(tf.image.decode_jpeg(tf.read_file(x), channels=3), [32, 32])})
     else:
         ds = tfds.load(name=dataset, split=split)
 
@@ -114,8 +118,8 @@ def get_dataset(dataset, split, batch_size, limit, augment=False, normal_class=-
     ds = ds.take((limit // batch_size) * batch_size) \
         .map(lambda x: x['image']) \
         .map(lambda x: tf.cast(x, tf.float32)) \
-        .map(lambda x: x / 255.) \
-        .map(lambda x: 2.0*x - 1.0)
+        .map(lambda x: x / 255.)
+
     if augment:
         ds = ds.map(lambda x: augment_transforms(x)) \
                .map(lambda x: tf.clip_by_value(x, -1, 1))

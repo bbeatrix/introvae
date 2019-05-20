@@ -3,7 +3,7 @@ import tensorflow as tf
 import tensorflow_datasets as tfds
 import keras, keras.backend as K
 
-from keras.layers import Input, Dense, Flatten
+from keras.layers import Activation, Input, Dense, Flatten
 from keras.models import Model
 
 import os, sys, time
@@ -86,7 +86,6 @@ if args.neg_dataset is not None:
     neg_data, neg_iterator, neg_iterator_init_op, neg_next = data.get_dataset(args.neg_dataset, tfds.Split.TRAIN, args.batch_size, train_size, args.augment)
 
 
-
 args.n_channels = 3 if args.color else 1
 args.original_shape = (args.n_channels, ) + args.shape
 
@@ -110,9 +109,12 @@ else:
     generator_layers = model.generator_layers_introvae(args.shape, args.base_filter_num, args.generator_use_bn)
 
 encoder_input = Input(batch_shape=[args.batch_size] + list(args.original_shape), name='encoder_input')
+
 generator_input = Input(batch_shape=(args.batch_size, args.latent_dim), name='generator_input')
 if args.aux:
     aux_input = Input(batch_shape=[args.batch_size] + list(args.original_shape), name='aux_input')
+if args.neg_dataset is not None:
+    neg_input = Input(batch_shape=[args.batch_size] + list(args.original_shape), name='neg_input')
 
 encoder_output = encoder_input
 for layer in encoder_layers:
@@ -127,6 +129,11 @@ if args.aux:
 generator_output = generator_input
 for layer in generator_layers:
     generator_output = layer(generator_output)
+
+if args.obs_noise_model == 'bernoulli':
+    generator_output = Activation('sigmoid')(generator_output)
+else:
+    generator_output = Activation('tanh')(generator_output)
 
 z, z_mean, z_log_var = model.add_sampling(encoder_output, args.sampling, args.sampling_std, args.batch_size, args.latent_dim, args.encoder_wd)
 
@@ -157,6 +164,8 @@ reconst_latent_input = Input(batch_shape=(args.batch_size, args.latent_dim), nam
 zr_mean, zr_log_var = discriminator(generator(reconst_latent_input))
 zr_mean_ng, zr_log_var_ng = discriminator(tf.stop_gradient(generator(reconst_latent_input)))
 xr_latent = generator(reconst_latent_input)
+if args.neg_dataset is not None:
+    zn_mean, zn_log_var = discriminator(neg_input)
 
 sampled_latent_input = Input(batch_shape=(args.batch_size, args.latent_dim), name='sampled_latent_input')
 zpp_gen = generator(sampled_latent_input)
@@ -205,6 +214,10 @@ if args.use_augmented_variance_loss:
 else:
     train_reg_loss = losses.reg_loss
 
+
+if args.neg_dataset is not None:
+    l_reg_neg = train_reg_loss(zn_mean, zn_log_var)
+
 l_reg_z = train_reg_loss(z_mean, z_log_var)
 l_reg_zr_ng = train_reg_loss(zr_mean_ng, zr_log_var_ng)
 l_reg_zpp_ng = train_reg_loss(zpp_mean_ng, zpp_log_var_ng)
@@ -216,9 +229,13 @@ l_reg_zpp = train_reg_loss(zpp_mean, zpp_log_var)
 HALF_LOG_TWO_PI = 0.91893
 
 def reconstruction_loss(x, xr):
-    return tf.reduce_sum(tf.square((x - xr) / gamma) / 2 + log_gamma + HALF_LOG_TWO_PI, [1, 2, 3])
+    if args.obs_noise_model == 'bernoulli':
+        return -tf.reduce_sum(x * tf.log(tf.maximum(xr, 1e-8)) + (1-x) * tf.log(tf.maximum(1-xr, 1e-8)), [1, 2, 3])
+    else:
+        return tf.reduce_sum(tf.square((x - xr) / gamma) / 2 + log_gamma + HALF_LOG_TWO_PI, [1, 2, 3])
 
 reconst_loss = reconstruction_loss(encoder_input, xr)
+
 #reconst_loss = K.mean(keras.objectives.mean_squared_error(encoder_input, xr), axis=(1,2))
 
 l_ae = tf.reduce_mean(reconstruction_loss(encoder_input, xr))
@@ -226,7 +243,7 @@ l_ae2 = tf.reduce_mean(reconstruction_loss(encoder_input, xr_latent))
 
 zpp_gradients = tf.gradients(l_reg_zpp, [zpp_gen])[0]
 
-assert(args.gradreg == 0.0, "Not implemented")
+assert args.gradreg == 0.0, "Not implemented"
     
 
 if args.margin_inf or args.m < 0.:
@@ -242,6 +259,8 @@ else:
 discriminator_loss = args.reg_lambda * l_reg_zd + args.alpha_reconstructed * K.maximum(0., margin - l_reg_zr_ng) + args.alpha_generated * K.maximum(0., margin - l_reg_zpp_ng)
 #discriminator_loss = args.reg_lambda * l_reg_zd + args.alpha_reconstructed * (1.0 / l_reg_zr_ng) + args.alpha_generated * (1.0 / l_reg_zpp_ng)
 
+if args.neg_dataset is not None:
+    discriminator_loss +=  args.alpha_neg * K.maximum(0., margin - l_reg_neg)
 if args.random_images_as_negative:
     zn_mean, zn_log_var = encoder(tf.clip_by_value(tf.abs(tf.random_normal( [args.batch_size] + list(args.original_shape) )), 0.0, 1.0))
     l_reg_noise = train_reg_loss(zn_mean, zn_log_var)
@@ -350,6 +369,9 @@ start_epoch = 0
 with tf.Session() as session:
     init = tf.global_variables_initializer()
     session.run([init, train_iterator_init_op, test_iterator_init_op_a, test_iterator_init_op_b, fixed_iterator_init_op])
+    if args.neg_dataset is not None:
+        session.run([neg_iterator_init_op])
+    
     summary_writer = tf.summary.FileWriter(args.prefix+"/", graph=tf.get_default_graph())
     saver = tf.train.Saver(max_to_keep=None)
     if args.model_path is not None and tf.train.checkpoint_exists(args.model_path):
@@ -382,7 +404,9 @@ with tf.Session() as session:
         if args.aux:
             train_feed_dict[aux_input] = x_transformed[:args.batch_size]
             train_feed_dict[aux_y] = aux_y_np[:args.batch_size]
-
+        if args.neg_dataset is not None:
+            x_n, = session.run([neg_next])
+            train_feed_dict[neg_input] = x_n
         if args.fixed_gen_as_negative:
             if fixed_gen_index + args.batch_size > args.fixed_gen_num:
                 fixed_gen_index = 0
@@ -476,18 +500,25 @@ with tf.Session() as session:
             xt_a_r, = session.run([xr], feed_dict={encoder_input: xt_a})
             xt_b_r, = session.run([xr], feed_dict={encoder_input: xt_b})
 
+            def make_observations(data):
+                if args.obs_noise_model == 'gaussian':
+                    return (data + 1.0) / 2.0
+                else:
+                    return data
+
             n_x = 5
             n_y = min(args.batch_size // n_x, 50)
             print('Save original images.')
-            orig_img = utils.plot_images(np.transpose(x, (0, 2, 3, 1)), n_x, n_y, "{}_original_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
+
+            orig_img = utils.plot_images(np.transpose(make_observations(x), (0, 2, 3, 1)), n_x, n_y, "{}_original_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
             print('Save generated images.')
-            gen_img = utils.plot_images(np.transpose(x_p, (0, 2, 3, 1)), n_x, n_y, "{}_sampled_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
+            gen_img = utils.plot_images(np.transpose(make_observations(x_p), (0, 2, 3, 1)), n_x, n_y, "{}_sampled_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
             print('Save reconstructed images.')
-            rec_img = utils.plot_images(np.transpose(x_r, (0, 2, 3, 1)), n_x, n_y, "{}_reconstructed_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
+            rec_img = utils.plot_images(np.transpose(make_observations(x_r), (0, 2, 3, 1)), n_x, n_y, "{}_reconstructed_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
             print('Save A test images.')
-            test_a_img = utils.plot_images(np.transpose(xt_a_r, (0, 2, 3, 1)), n_x, n_y, "{}_test_a_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
+            test_a_img = utils.plot_images(np.transpose(make_observations(xt_a_r), (0, 2, 3, 1)), n_x, n_y, "{}_test_a_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
             print('Save B test images.')
-            test_b_img = utils.plot_images(np.transpose(xt_b_r, (0, 2, 3, 1)), n_x, n_y, "{}_test_b_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
+            test_b_img = utils.plot_images(np.transpose(make_observations(xt_b_r), (0, 2, 3, 1)), n_x, n_y, "{}_test_b_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
 
             neptune.send_image('original', orig_img)
             neptune.send_image('generated', gen_img)
@@ -523,6 +554,10 @@ with tf.Session() as session:
             l2_var_b = np.linalg.norm(b_result_dict['test_log_var'], axis=1)
             neglog_likelihood_a = kl_a + rec_a
             neglog_likelihood_b = kl_b + rec_b
+            original_dim = np.float32(np.prod(args.original_shape))
+            bpd_a = kl_a + rec_a / original_dim
+            bpd_b = kl_b + rec_b / original_dim
+
 
             neptune.send_metric('test_mean_a', np.mean(mean_a))
             neptune.send_metric('test_mean_b', np.mean(mean_b))
@@ -537,6 +572,7 @@ with tf.Session() as session:
             auc_l2_mean = roc_auc_score(np.concatenate([np.zeros_like(l2_mean_a), np.ones_like(l2_mean_b)]), np.concatenate([l2_mean_a, l2_mean_b]))
             auc_l2_var = roc_auc_score(np.concatenate([np.zeros_like(l2_var_a), np.ones_like(l2_var_b)]), np.concatenate([l2_var_a, l2_var_b]))
             auc_neglog_likelihood = roc_auc_score(np.concatenate([np.zeros_like(neglog_likelihood_a), np.ones_like(neglog_likelihood_b)]), np.concatenate([neglog_likelihood_a, neglog_likelihood_b]))
+            auc_bpd = roc_auc_score(np.concatenate([np.zeros_like(bpd_a), np.ones_like(bpd_b)]), np.concatenate([bpd_a, bpd_b]))
 
             neptune.send_metric('auc_kl_{}_vs_{}'.format(args.test_dataset_a, args.test_dataset_b), x=global_iters, y=auc_kl)
             neptune.send_metric('auc_mean_{}_vs_{}'.format(args.test_dataset_a, args.test_dataset_b), x=global_iters, y=auc_mean)
@@ -544,12 +580,14 @@ with tf.Session() as session:
             neptune.send_metric('auc_l2_mean_{}_vs_{}'.format(args.test_dataset_a, args.test_dataset_b), x=global_iters, y=auc_l2_mean)
             neptune.send_metric('auc_l2_var_{}_vs_{}'.format(args.test_dataset_a, args.test_dataset_b), x=global_iters, y=auc_l2_var)
             neptune.send_metric('auc_neglog_likelihood_{}_vs_{}'.format(args.test_dataset_a, args.test_dataset_b), x=global_iters, y=auc_neglog_likelihood)
+            neptune.send_metric('auc_bpd', x=global_iters, y=auc_bpd)
 
-            neptune.send_metric('auc', x=global_iters, y=auc_neglog_likelihood)
+            neptune.send_metric('auc', x=global_iters, y=auc_bpd)
 
 
         if (global_iters % iterations_per_epoch == 0) and ((epoch + 1) % 10 == 0):
-            np.savez("{}_neglog_likelihoods_epoch{}_iter{}".format(args.prefix, epoch+1, global_iters), labels=np.concatenate([np.zeros_like(neglog_likelihood_a), np.ones_like(neglog_likelihood_b)]), neglog_likelihoods=np.concatenate([neglog_likelihood_a, neglog_likelihood_b]))
+            np.savez("{}_kl_epoch{}_iter{}".format(args.prefix, epoch+1, global_iters), labels=np.concatenate([np.zeros_like(kl_a), np.ones_like(kl_b)]), neglog_likelihoods=np.concatenate([kl_a, kl_b]))
+            np.savez("{}_rec_epoch{}_iter{}".format(args.prefix, epoch+1, global_iters), labels=np.concatenate([np.zeros_like(rec_a), np.ones_like(rec_b)]), neglog_likelihoods=np.concatenate([rec_a, rec_b]))
 
     neptune.stop()
     if args.model_path is not None:

@@ -25,6 +25,7 @@ parser.add_argument('--test_dataset_a', dest='test_dataset_a', default='cifar10'
 parser.add_argument('--test_dataset_b', dest='test_dataset_b', default='svhn_cropped', type=str, help="Test dataset b - for comparison on different test datasets")
 parser.add_argument('--num_classes', dest="num_classes", default=10, type=int, help="Number of classes in dataset.")
 parser.add_argument('--neg_dataset', dest='neg_dataset', default=None, type=str, help="Negative samples dataset")
+parser.add_argument('--obs_noise_model', dest='obs_noise_model', default='gaussian', type=str, help="Noise model in the observable space. Can be: bernoulli, gaussian")
 
 # model hyperparameters
 parser.add_argument('--margin_inf', dest="margin_inf", type=str2bool, default=False, help="If True, the margin is increasing intead of being fixed value")
@@ -32,6 +33,7 @@ parser.add_argument('--m', dest="m", type=int, default=120, help="Value of model
 parser.add_argument('--alpha', dest="alpha", type=float, default=None, help="Value of model hyperparameter alpha.")
 parser.add_argument('--alpha_reconstructed', dest="alpha_reconstructed", type=float, default=0.25, help="Value of model hyperparameter alpha searately for loss terms from reconstructed images.")
 parser.add_argument('--alpha_generated', dest="alpha_generated", type=float, default=0.25, help="Value of model hyperparameter alpha separately for loss terms from generated images.")
+parser.add_argument('--alpha_neg', dest="alpha_neg", type=float, default=0.0, help="Alpha value for negative samples.")
 parser.add_argument('--alpha_fixed_gen', dest="alpha_fixed_gen", type=float, default=1.0, help="Weight of loss from fixed generated images as negatives")
 parser.add_argument('--beta', dest="beta", type=float, default=0.05, help="Value of model hyperparameter beta.")
 parser.add_argument('--reg_lambda', dest="reg_lambda", type=float, default=1.0, help="Weight of vae loss.")

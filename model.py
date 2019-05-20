@@ -98,7 +98,7 @@ def generator_layers_dcgan_univ(image_size, image_channels, base_channels, bn_al
             size = size * 2
         idx += 1
     layers.append(Conv2D(image_channels, (kernel, kernel), use_bias=False, strides=(1, 1), padding=border_mode, kernel_regularizer=l2(wd)))
-    layers.append(Activation("tanh", name="generator_{}".format(idx)))
+    #layers.append(Activation("tanh", name="generator_{}".format(idx)))
 
     return layers
 
@@ -141,7 +141,7 @@ def generator_layers_dcgan(image_size, base_channels, bn_allowed, wd):
         else:
             border_mode = "same"
         if idx == (len(channels)-1):
-            activation = "tanh"
+            activation = "linear"
             use_bn = False
         else:
             activation="relu"
@@ -181,7 +181,7 @@ def generator_layers_deepsvdd(image_size, base_channels=32, bn_allowed=True):
     layers.append(Conv2D(3, (5, 5), padding='same', kernel_initializer='glorot_uniform', name='generator_conv_'+str(3)))
     if bn_allowed:
             layers.append(BatchNormalization(axis=1, name='generator_bn_'+str(3)))
-    layers.append(Activation('tanh'))
+    #layers.append(Activation('tanh'))
     return layers
 
 def encoder_layers_introvae(image_size, base_channels, bn_allowed):
@@ -235,7 +235,7 @@ def generator_layers_introvae(image_size, base_channels, bn_allowed):
         block += 1
 
     layers.append(Conv2D(3, (5, 5), padding='same', kernel_initializer='he_normal', name='generator_conv_0'))
-    layers.append(Activation('tanh'))
+    #layers.append(Activation('tanh'))
     return layers
 
 
