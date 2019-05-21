@@ -130,10 +130,7 @@ generator_output = generator_input
 for layer in generator_layers:
     generator_output = layer(generator_output)
 
-if args.obs_noise_model == 'bernoulli':
-    generator_output = Activation('sigmoid')(generator_output)
-else:
-    generator_output = Activation('tanh')(generator_output)
+generator_output = Activation('sigmoid')(generator_output)
 
 z, z_mean, z_log_var = model.add_sampling(encoder_output, args.sampling, args.sampling_std, args.batch_size, args.latent_dim, args.encoder_wd)
 
@@ -501,10 +498,7 @@ with tf.Session() as session:
             xt_b_r, = session.run([xr], feed_dict={encoder_input: xt_b})
 
             def make_observations(data):
-                if args.obs_noise_model == 'gaussian':
-                    return (data + 1.0) / 2.0
-                else:
-                    return data
+                return data
 
             n_x = 5
             n_y = min(args.batch_size // n_x, 50)
