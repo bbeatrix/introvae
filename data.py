@@ -32,7 +32,7 @@ def get_dataset(dataset, split, batch_size, limit, augment=False, normal_class=-
     ds = ds.take((limit // batch_size) * batch_size) \
         .map(lambda x: x['image']) \
         .map(lambda x: tf.cast(x, tf.float32)) \
-        .map(lambda x: tf.random.uniform(x.shape))
+        .map(lambda x: tf.random.uniform(x.shape)) \
         .map(lambda x: x / 255.)
 
     if augment:
