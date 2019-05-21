@@ -9,7 +9,7 @@ import os
 K.set_image_data_format('channels_first')
 
 
-def get_dataset(dataset, split, batch_size, limit, augment=False, normal_class=-1, outliers=False):
+def get_dataset(dataset, split, batch_size, limit, augment=False, normal_class=-1, outliers=False, add_obs_noise=False):
 
     from glob import glob
     if dataset == 'tiny-imagenet-200':
@@ -31,10 +31,13 @@ def get_dataset(dataset, split, batch_size, limit, augment=False, normal_class=-
 
     ds = ds.take((limit // batch_size) * batch_size) \
         .map(lambda x: x['image']) \
-        .map(lambda x: tf.cast(x, tf.float32)) \
-        .map(lambda x: x + tf.random.uniform(x.shape)) \
-        .map(lambda x: x / 255.)
+        .map(lambda x: tf.cast(x, tf.float32))
 
+    if add_obs_noise:
+        ds = ds.map(lambda x: x + tf.random.uniform(x.shape))
+    
+    ds = ds.map(lambda x: x / 255.)
+        
     if augment:
         ds = ds.map(lambda x: augment_transforms(x)) \
                .map(lambda x: tf.clip_by_value(x, -1, 1))

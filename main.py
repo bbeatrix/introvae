@@ -77,13 +77,13 @@ print("test_size_b: ", test_size_b)
 #    fixed_dataset, fixed_iterator, fixed_iterator_init_op, fixed_next \
 #         = data.create_dataset(os.path.join(data_path, "train/*.npy"), args.batch_size, args.latent_cloud_size)
 
-train_data, train_iterator, train_iterator_init_op, train_next = data.get_dataset(args.dataset, tfds.Split.TRAIN, args.batch_size, train_size, args.augment, args.normal_class)
-fixed_data, fixed_iterator, fixed_iterator_init_op, fixed_next = data.get_dataset(args.dataset, tfds.Split.TRAIN, args.batch_size, args.latent_cloud_size, args.augment, args.normal_class)
-test_data_a, test_iterator_a, test_iterator_init_op_a, test_next_a = data.get_dataset(args.test_dataset_a, tfds.Split.TEST, args.batch_size, test_size_a, args.augment, args.normal_class, outliers=False)
-test_data_b, test_iterator_b, test_iterator_init_op_b, test_next_b = data.get_dataset(args.test_dataset_b, tfds.Split.TEST, args.batch_size, test_size_b, args.augment, args.normal_class, outliers=True)
+train_data, train_iterator, train_iterator_init_op, train_next = data.get_dataset(args.dataset, tfds.Split.TRAIN, args.batch_size, train_size, args.augment, args.normal_class, add_obs_noise=args.add_obs_noise)
+fixed_data, fixed_iterator, fixed_iterator_init_op, fixed_next = data.get_dataset(args.dataset, tfds.Split.TRAIN, args.batch_size, args.latent_cloud_size, args.augment, args.normal_class, add_obs_noise=args.add_obs_noise)
+test_data_a, test_iterator_a, test_iterator_init_op_a, test_next_a = data.get_dataset(args.test_dataset_a, tfds.Split.TEST, args.batch_size, test_size_a, args.augment, args.normal_class, outliers=False, add_obs_noise=args.add_obs_noise)
+test_data_b, test_iterator_b, test_iterator_init_op_b, test_next_b = data.get_dataset(args.test_dataset_b, tfds.Split.TEST, args.batch_size, test_size_b, args.augment, args.normal_class, outliers=True, add_obs_noise=args.add_obs_noise)
 
 if args.neg_dataset is not None:
-    neg_data, neg_iterator, neg_iterator_init_op, neg_next = data.get_dataset(args.neg_dataset, tfds.Split.TRAIN, args.batch_size, train_size, args.augment)
+    neg_data, neg_iterator, neg_iterator_init_op, neg_next = data.get_dataset(args.neg_dataset, tfds.Split.TRAIN, args.batch_size, train_size, args.augment, add_obs_noise=args.add_obs_noise)
 
 
 args.n_channels = 3 if args.color else 1
