@@ -60,6 +60,7 @@ else:
     test_size_a = args.test_size
     test_size_b = args.test_size
 
+
 print("train_size: ", train_size)
 print("test_size_a: ", test_size_a)
 print("test_size_b: ", test_size_b)
@@ -83,7 +84,10 @@ test_data_a, test_iterator_a, test_iterator_init_op_a, test_next_a = data.get_da
 test_data_b, test_iterator_b, test_iterator_init_op_b, test_next_b = data.get_dataset(args.test_dataset_b, tfds.Split.TEST, args.batch_size, test_size_b, args.augment, args.normal_class, outliers=True, add_obs_noise=args.add_obs_noise)
 
 if args.neg_dataset is not None:
-    neg_data, neg_iterator, neg_iterator_init_op, neg_next = data.get_dataset(args.neg_dataset, tfds.Split.TRAIN, args.batch_size, train_size, args.augment, add_obs_noise=args.add_obs_noise)
+    neg_train_size = args.neg_train_size
+    neg_test_size = args.neg_test_size
+    neg_data, neg_iterator, neg_iterator_init_op, neg_next = data.get_dataset(args.neg_dataset, tfds.Split.TRAIN, args.batch_size, neg_train_size, args.augment, add_obs_noise=args.add_obs_noise)
+    neg_test_data, neg_test_iterator, neg_test_iterator_init_op, neg_test_next = data.get_dataset(args.neg_dataset, tfds.Split.TEST, args.batch_size, neg_test_size, args.augment, add_obs_noise=args.add_obs_noise)
 
 
 args.n_channels = 3 if args.color else 1
@@ -367,7 +371,7 @@ with tf.Session() as session:
     init = tf.global_variables_initializer()
     session.run([init, train_iterator_init_op, test_iterator_init_op_a, test_iterator_init_op_b, fixed_iterator_init_op])
     if args.neg_dataset is not None:
-        session.run([neg_iterator_init_op])
+        session.run([neg_iterator_init_op, neg_test_iterator_init_op])
     
     summary_writer = tf.summary.FileWriter(args.prefix+"/", graph=tf.get_default_graph())
     saver = tf.train.Saver(max_to_keep=None)
@@ -485,6 +489,8 @@ with tf.Session() as session:
             _ = utils.save_output(session, '_'.join([args.prefix, args.dataset]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: fixed_next}), OrderedDict({"train_mean": z_mean, "train_log_var": z_log_var}), args.latent_cloud_size)
             a_result_dict = utils.save_output(session, '_'.join([args.prefix, args.test_dataset_a]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next_a}), OrderedDict({"test_mean": z_mean, "test_log_var": z_log_var, "test_reconstloss": reconst_loss}), test_size_a, args.augment_avg_at_test, args.original_shape)
             b_result_dict = utils.save_output(session, '_'.join([args.prefix, args.test_dataset_b]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next_b}), OrderedDict({"test_mean": z_mean, "test_log_var": z_log_var, "test_reconstloss": reconst_loss}), test_size_b, args.augment_avg_at_test, args.original_shape)
+            if args.neg_dataset is not None:
+                neg_result_dict = utils.save_output(session, '_'.join([args.prefix, args.neg_dataset]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: neg_test_next}), OrderedDict({"test_mean": z_mean, "test_log_var": z_log_var, "test_reconstloss": reconst_loss}), neg_test_size, args.augment_avg_at_test, args.original_shape)
 
         if (global_iters % iterations_per_epoch == 0) and args.save_fixed_gen and ((epoch+1 <= 10) or ((epoch+1)%10 == 0)):
             z_fixed_gen = tf.random_normal([args.batch_size, args.latent_dim])
@@ -536,48 +542,53 @@ with tf.Session() as session:
             def kldiv(mean, log_var):
                 return 0.5 * np.sum(- 1 - log_var + np.square(mean) + np.exp(log_var), axis=-1)
 
-            kl_a = kldiv( np.array(a_result_dict['test_mean']), np.array(a_result_dict['test_log_var']))
-            kl_b = kldiv( np.array(b_result_dict['test_mean']), np.array(b_result_dict['test_log_var']))
-            mean_a = np.mean(a_result_dict['test_mean'], axis=1)
-            mean_b = np.mean(b_result_dict['test_mean'], axis=1)
-            rec_a = a_result_dict['test_reconstloss']
-            rec_b = b_result_dict['test_reconstloss']
-            l2_mean_a = np.linalg.norm(a_result_dict['test_mean'], axis=1)
-            l2_mean_b = np.linalg.norm(b_result_dict['test_mean'], axis=1)
-            l2_var_a = np.linalg.norm(a_result_dict['test_log_var'], axis=1)
-            l2_var_b = np.linalg.norm(b_result_dict['test_log_var'], axis=1)
-            neglog_likelihood_a = kl_a + rec_a
-            neglog_likelihood_b = kl_b + rec_b
-            original_dim = np.float32(np.prod(args.original_shape))
-            bpd_a = kl_a + rec_a / original_dim
-            bpd_b = kl_b + rec_b / original_dim
+            def compare(a_result_dict, b_result_dict, a_name, b_name, postfix=""):
+                kl_a = kldiv( np.array(a_result_dict['test_mean']), np.array(a_result_dict['test_log_var']))
+                kl_b = kldiv( np.array(b_result_dict['test_mean']), np.array(b_result_dict['test_log_var']))
+                mean_a = np.mean(a_result_dict['test_mean'], axis=1)
+                mean_b = np.mean(b_result_dict['test_mean'], axis=1)
+                rec_a = a_result_dict['test_reconstloss']
+                rec_b = b_result_dict['test_reconstloss']
+                l2_mean_a = np.linalg.norm(a_result_dict['test_mean'], axis=1)
+                l2_mean_b = np.linalg.norm(b_result_dict['test_mean'], axis=1)
+                l2_var_a = np.linalg.norm(a_result_dict['test_log_var'], axis=1)
+                l2_var_b = np.linalg.norm(b_result_dict['test_log_var'], axis=1)
+                neglog_likelihood_a = kl_a + rec_a
+                neglog_likelihood_b = kl_b + rec_b
+                original_dim = np.float32(np.prod(args.original_shape))
+                bpd_a = kl_a + rec_a / original_dim
+                bpd_b = kl_b + rec_b / original_dim
 
+                neptune.send_metric('test_mean_a{}'.format(postfix), x=global_iters, y=np.mean(mean_a))
+                neptune.send_metric('test_mean_b{}'.format(postfix), x=global_iters, y=np.mean(mean_b))
+                neptune.send_metric('test_var_a{}'.format(postfix), x=global_iters, y=np.mean(np.exp(a_result_dict['test_log_var']), axis=(0,1)))
+                neptune.send_metric('test_var_b{}'.format(postfix), x=global_iters, y=np.mean(np.exp(b_result_dict['test_log_var']), axis=(0,1)))
+                neptune.send_metric('test_rec_a{}'.format(postfix), x=global_iters, y=np.mean(rec_a))
+                neptune.send_metric('test_rec_b{}'.format(postfix), x=global_iters, y=np.mean(rec_b))
 
-            neptune.send_metric('test_mean_a', np.mean(mean_a))
-            neptune.send_metric('test_mean_b', np.mean(mean_b))
-            neptune.send_metric('test_var_a', np.mean(np.exp(a_result_dict['test_log_var']), axis=(0,1)))
-            neptune.send_metric('test_var_b', np.mean(np.exp(b_result_dict['test_log_var']), axis=(0,1)))
-            neptune.send_metric('test_rec_a', np.mean(rec_a))
-            neptune.send_metric('test_rec_b', np.mean(rec_b))
+                auc_kl = roc_auc_score(np.concatenate([np.zeros_like(kl_a), np.ones_like(kl_b)]), np.concatenate([kl_a, kl_b]))
+                auc_mean = roc_auc_score(np.concatenate([np.zeros_like(mean_a), np.ones_like(mean_b)]), np.concatenate([mean_a, mean_b]))
+                auc_rec = roc_auc_score(np.concatenate([np.zeros_like(rec_a), np.ones_like(rec_b)]), np.concatenate([rec_a, rec_b]))
+                auc_l2_mean = roc_auc_score(np.concatenate([np.zeros_like(l2_mean_a), np.ones_like(l2_mean_b)]), np.concatenate([l2_mean_a, l2_mean_b]))
+                auc_l2_var = roc_auc_score(np.concatenate([np.zeros_like(l2_var_a), np.ones_like(l2_var_b)]), np.concatenate([l2_var_a, l2_var_b]))
+                auc_neglog_likelihood = roc_auc_score(np.concatenate([np.zeros_like(neglog_likelihood_a), np.ones_like(neglog_likelihood_b)]), np.concatenate([neglog_likelihood_a, neglog_likelihood_b]))
+                auc_bpd = roc_auc_score(np.concatenate([np.zeros_like(bpd_a), np.ones_like(bpd_b)]), np.concatenate([bpd_a, bpd_b]))
 
-            auc_kl = roc_auc_score(np.concatenate([np.zeros_like(kl_a), np.ones_like(kl_b)]), np.concatenate([kl_a, kl_b]))
-            auc_mean = roc_auc_score(np.concatenate([np.zeros_like(mean_a), np.ones_like(mean_b)]), np.concatenate([mean_a, mean_b]))
-            auc_rec = roc_auc_score(np.concatenate([np.zeros_like(rec_a), np.ones_like(rec_b)]), np.concatenate([rec_a, rec_b]))
-            auc_l2_mean = roc_auc_score(np.concatenate([np.zeros_like(l2_mean_a), np.ones_like(l2_mean_b)]), np.concatenate([l2_mean_a, l2_mean_b]))
-            auc_l2_var = roc_auc_score(np.concatenate([np.zeros_like(l2_var_a), np.ones_like(l2_var_b)]), np.concatenate([l2_var_a, l2_var_b]))
-            auc_neglog_likelihood = roc_auc_score(np.concatenate([np.zeros_like(neglog_likelihood_a), np.ones_like(neglog_likelihood_b)]), np.concatenate([neglog_likelihood_a, neglog_likelihood_b]))
-            auc_bpd = roc_auc_score(np.concatenate([np.zeros_like(bpd_a), np.ones_like(bpd_b)]), np.concatenate([bpd_a, bpd_b]))
+                neptune.send_metric('auc_kl_{}_vs_{}{}'.format(args.test_dataset_a, args.test_dataset_b, postfix), x=global_iters, y=auc_kl)
+                neptune.send_metric('auc_mean_{}_vs_{}{}'.format(args.test_dataset_a, args.test_dataset_b, postfix), x=global_iters, y=auc_mean)
+                neptune.send_metric('auc_rec_{}_vs_{}{}'.format(args.test_dataset_a, args.test_dataset_b, postfix), x=global_iters, y=auc_rec)
+                neptune.send_metric('auc_l2_mean_{}_vs_{}{}'.format(args.test_dataset_a, args.test_dataset_b, postfix), x=global_iters, y=auc_l2_mean)
+                neptune.send_metric('auc_l2_var_{}_vs_{}{}'.format(args.test_dataset_a, args.test_dataset_b, postfix), x=global_iters, y=auc_l2_var)
+                neptune.send_metric('auc_neglog_likelihood_{}_vs_{}{}'.format(args.test_dataset_a, args.test_dataset_b, postfix), x=global_iters, y=auc_neglog_likelihood)
+                neptune.send_metric('auc_bpd{}'.format(postfix), x=global_iters, y=auc_bpd)
 
-            neptune.send_metric('auc_kl_{}_vs_{}'.format(args.test_dataset_a, args.test_dataset_b), x=global_iters, y=auc_kl)
-            neptune.send_metric('auc_mean_{}_vs_{}'.format(args.test_dataset_a, args.test_dataset_b), x=global_iters, y=auc_mean)
-            neptune.send_metric('auc_rec_{}_vs_{}'.format(args.test_dataset_a, args.test_dataset_b), x=global_iters, y=auc_rec)
-            neptune.send_metric('auc_l2_mean_{}_vs_{}'.format(args.test_dataset_a, args.test_dataset_b), x=global_iters, y=auc_l2_mean)
-            neptune.send_metric('auc_l2_var_{}_vs_{}'.format(args.test_dataset_a, args.test_dataset_b), x=global_iters, y=auc_l2_var)
-            neptune.send_metric('auc_neglog_likelihood_{}_vs_{}'.format(args.test_dataset_a, args.test_dataset_b), x=global_iters, y=auc_neglog_likelihood)
-            neptune.send_metric('auc_bpd', x=global_iters, y=auc_bpd)
+                if postfix == "":
+                    neptune.send_metric('auc', x=global_iters, y=auc_bpd)
+                return kl_a, kl_b, rec_a, rec_b
 
-            neptune.send_metric('auc', x=global_iters, y=auc_bpd)
-
+            kl_a, kl_b, rec_a, rec_b = compare(a_result_dict, b_result_dict, args.test_dataset_a, args.test_dataset_b, "")
+            if args.neg_dataset is not None:
+                compare(a_result_dict, neg_result_dict, args.test_dataset_a, args.neg_dataset, "_neg")
 
         if (global_iters % iterations_per_epoch == 0) and ((epoch + 1) % 10 == 0):
             np.savez("{}_kl_epoch{}_iter{}".format(args.prefix, epoch+1, global_iters), labels=np.concatenate([np.zeros_like(kl_a), np.ones_like(kl_b)]), neglog_likelihoods=np.concatenate([kl_a, kl_b]))

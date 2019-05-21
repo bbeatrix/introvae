@@ -11,7 +11,7 @@ K.set_image_data_format('channels_first')
 
 def get_dataset(dataset, split, batch_size, limit, augment=False, normal_class=-1, outliers=False, add_obs_noise=False):
 
-    if dataset == 'enmist-letters':
+    if dataset == 'emnist-letters':
         dataset = 'emnist/letters'
 
     from glob import glob
