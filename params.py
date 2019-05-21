@@ -92,6 +92,9 @@ parser.add_argument('--gcnorm', dest='gcnorm', type=str, default="l1", help="Glo
 
 args = parser.parse_args()
 
+if args.neg_dataset == "None":
+    args.neg_dataset = None
+
 def getArgs():
     # put output files in a separate directory
     if not os.path.exists(args.prefix):
