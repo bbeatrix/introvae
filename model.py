@@ -71,6 +71,8 @@ def generator_layers_dcgan_univ(image_size, image_channels, base_channels, bn_al
     layers = []
     channels = 2**n_upsample*base_channels
     layers.append(Dense(channels*start_width*start_width))
+    layers.append(BatchNormalization(axis=1))
+    layers.append(Activation('relu'))
     layers.append(Reshape((-1, start_width, start_width)))
 
     size = start_width
