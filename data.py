@@ -20,6 +20,11 @@ def get_dataset(dataset, split, batch_size, limit, augment=False, normal_class=-
         dirs = [d + "images/*.JPEG" for d in glob(directory)]
         ds = tf.data.Dataset.list_files(dirs)
         ds = ds.map(lambda x: {'image':tf.image.resize_images(tf.image.decode_jpeg(tf.read_file(x), channels=3), [32, 32])})
+    elif dataset == 'uniform-noise':
+        def random_uniform_generator():
+            while True:
+                yield {'image': np.random.randint(0, high=255, size=(28,28,1))}
+        ds = tf.data.Dataset.from_generator(random_uniform_generator, output_types={'image': tf.int32}, output_shapes={'image': (28, 28, 1)})
     else:
         ds = tfds.load(name=dataset, split=split)
 
