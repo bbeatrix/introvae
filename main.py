@@ -102,6 +102,11 @@ transformer = Transformer()
 if args.model_architecture == 'deepsvdd':
     encoder_layers = model.encoder_layers_deepsvdd(args.shape, args.base_filter_num, args.encoder_use_bn)
     generator_layers = model.generator_layers_deepsvdd(args.shape, args.base_filter_num, args.generator_use_bn)
+
+elif args.model_architecture == 'baseline_mnist':
+    encoder_layers = model.encoder_layers_baseline_mnist(args.shape, args.base_filter_num, args.encoder_use_bn, args.encoder_wd, args.seed)
+    generator_layers = model.generator_layers_baseline_mnist(args.shape, args.base_filter_num, args.encoder_use_bn, args.generator_wd, args.seed)
+
 elif args.model_architecture == 'dcgan':
     encoder_layers = model.encoder_layers_dcgan(args.shape, args.base_filter_num, args.encoder_use_bn, args.encoder_wd)
     generator_layers = model.generator_layers_dcgan(args.shape, args.base_filter_num, args.encoder_use_bn, args.generator_wd)
