@@ -551,8 +551,9 @@ with tf.Session() as session:
 
         if ((global_iters % iterations_per_epoch == 0) and args.oneclass_eval):
 
+            log2pi = np.log(2. * np.pi)
             def kldiv(mean, log_var):
-                return 0.5 * np.sum(- 1 - log_var + np.square(mean) + np.exp(log_var), axis=-1)
+                return 0.5 * np.sum( - log_var + np.square(mean) + np.exp(log_var) - log2pi, axis=-1)
 
             def compare(a_result_dict, b_result_dict, a_name, b_name, postfix=""):
                 kl_a = kldiv( np.array(a_result_dict['test_mean']), np.array(a_result_dict['test_log_var']))
