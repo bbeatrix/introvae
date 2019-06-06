@@ -551,9 +551,8 @@ with tf.Session() as session:
 
         if ((global_iters % iterations_per_epoch == 0) and args.oneclass_eval):
 
-            log2pi = np.log(2. * np.pi)
             def kldiv(mean, log_var):
-                return 0.5 * np.sum( - log_var + np.square(mean) + np.exp(log_var) - log2pi, axis=-1)
+                return 0.5 * np.sum( - log_var + np.square(mean) + np.exp(log_var) - 1, axis=-1)
 
             def compare(a_result_dict, b_result_dict, a_name, b_name, postfix=""):
                 kl_a = kldiv( np.array(a_result_dict['test_mean']), np.array(a_result_dict['test_log_var']))
@@ -598,10 +597,8 @@ with tf.Session() as session:
                 neptune.send_metric('auc_neglog_likelihood_{}_vs_{}{}'.format(args.test_dataset_a, args.test_dataset_b, postfix), x=global_iters, y=auc_neglog_likelihood)
                 neptune.send_metric('auc_bpd{}'.format(postfix), x=global_iters, y=auc_bpd)
 
-                mean_bpd_a = np.mean(bpd_a)
-                neptune.send_metric('test_bpd_a{}'.format(postfix), x=global_iters, y=mean_bpd_a)
-                mean_bpd_b = np.mean(bpd_b)
-                neptune.send_metric('test_bpd_b{}'.format(postfix), x=global_iters, y=mean_bpd_b)
+                neptune.send_metric('test_bpd_a{}'.format(postfix), x=global_iters, y=np.mean(bpd_a))
+                neptune.send_metric('test_bpd_b{}'.format(postfix), x=global_iters, y=np.mean(bpd_b))
 
 
                 if postfix == "":
