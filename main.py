@@ -104,8 +104,8 @@ if args.model_architecture == 'deepsvdd':
     generator_layers = model.generator_layers_deepsvdd(args.shape, args.base_filter_num, args.generator_use_bn)
 
 elif args.model_architecture == 'baseline_mnist':
-    encoder_layers = model.encoder_layers_baseline_mnist(args.shape, args.base_filter_num, args.encoder_use_bn, args.encoder_wd, args.seed)
-    generator_layers = model.generator_layers_baseline_mnist(args.shape, args.base_filter_num, args.encoder_use_bn, args.generator_wd, args.seed)
+    encoder_layers = model.encoder_layers_baseline_mnist(args.shape, args.n_channels, args.base_filter_num, args.encoder_use_bn, args.encoder_wd, args.seed)
+    generator_layers = model.generator_layers_baseline_mnist(args.shape, args.n_channels, args.base_filter_num, args.encoder_use_bn, args.generator_wd, args.seed)
 
 elif args.model_architecture == 'dcgan':
     encoder_layers = model.encoder_layers_dcgan(args.shape, args.base_filter_num, args.encoder_use_bn, args.encoder_wd)
@@ -116,6 +116,7 @@ elif args.model_architecture == 'dcgan_univ':
 else:
     encoder_layers = model.encoder_layers_introvae(args.shape, args.base_filter_num, args.encoder_use_bn)
     generator_layers = model.generator_layers_introvae(args.shape, args.base_filter_num, args.generator_use_bn)
+
 
 encoder_input = Input(batch_shape=[args.batch_size] + list(args.original_shape), name='encoder_input')
 
@@ -139,8 +140,7 @@ generator_output = generator_input
 for layer in generator_layers:
     generator_output = layer(generator_output)
 
-generator_output = Activation('sigmoid')(generator_output)
-
+generator_output = model.add_observable_output(generator_output, args)
 z, z_mean, z_log_var = model.add_sampling(encoder_output, args.sampling, args.sampling_std, args.batch_size, args.latent_dim, args.encoder_wd)
 
 if args.trained_gamma:
@@ -192,13 +192,20 @@ else:
     learning_rate = tf.constant(args.lr)
 
 
-optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
-
-encoder_optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
-generator_optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
-joint_optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
-if args.aux:
-    aux_optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
+if args.optimizer == 'rmsprop':
+    optimizer = tf.train.RMSPropOptimizer(learning_rate=learning_rate)
+    encoder_optimizer = tf.train.RMSPropOptimizer(learning_rate=learning_rate)
+    generator_optimizer = tf.train.RMSPropOptimizer(learning_rate=learning_rate)
+    joint_optimizer = tf.train.RMSPropOptimizer(learning_rate=learning_rate)
+    if args.aux:
+        aux_optimizer = tf.train.RMSPropOptimizer(learning_rate=learning_rate)
+else:
+    optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
+    encoder_optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
+    generator_optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
+    joint_optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
+    if args.aux:
+        aux_optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
 
 
 if args.separate_discriminator:
@@ -561,8 +568,8 @@ with tf.Session() as session:
                 neglog_likelihood_a = kl_a + rec_a
                 neglog_likelihood_b = kl_b + rec_b
                 original_dim = np.float32(np.prod(args.original_shape))
-                bpd_a = kl_a + rec_a / original_dim
-                bpd_b = kl_b + rec_b / original_dim
+                bpd_a = neglog_likelihood_a / original_dim
+                bpd_b = neglog_likelihood_b / original_dim
 
                 neptune.send_metric('test_mean_a{}'.format(postfix), x=global_iters, y=np.mean(mean_a))
                 neptune.send_metric('test_mean_b{}'.format(postfix), x=global_iters, y=np.mean(mean_b))
@@ -570,6 +577,9 @@ with tf.Session() as session:
                 neptune.send_metric('test_var_b{}'.format(postfix), x=global_iters, y=np.mean(np.exp(b_result_dict['test_log_var']), axis=(0,1)))
                 neptune.send_metric('test_rec_a{}'.format(postfix), x=global_iters, y=np.mean(rec_a))
                 neptune.send_metric('test_rec_b{}'.format(postfix), x=global_iters, y=np.mean(rec_b))
+                neptune.send_metric('test_kl_a{}'.format(postfix), x=global_iters, y=np.mean(kl_a))
+                neptune.send_metric('test_kl_b{}'.format(postfix), x=global_iters, y=np.mean(kl_b))
+
 
                 auc_kl = roc_auc_score(np.concatenate([np.zeros_like(kl_a), np.ones_like(kl_b)]), np.concatenate([kl_a, kl_b]))
                 auc_mean = roc_auc_score(np.concatenate([np.zeros_like(mean_a), np.ones_like(mean_b)]), np.concatenate([mean_a, mean_b]))
@@ -586,6 +596,12 @@ with tf.Session() as session:
                 neptune.send_metric('auc_l2_var_{}_vs_{}{}'.format(args.test_dataset_a, args.test_dataset_b, postfix), x=global_iters, y=auc_l2_var)
                 neptune.send_metric('auc_neglog_likelihood_{}_vs_{}{}'.format(args.test_dataset_a, args.test_dataset_b, postfix), x=global_iters, y=auc_neglog_likelihood)
                 neptune.send_metric('auc_bpd{}'.format(postfix), x=global_iters, y=auc_bpd)
+
+                mean_bpd_a = np.mean(bpd_a)
+                neptune.send_metric('test_bpd_a{}'.format(postfix), x=global_iters, y=mean_bpd_a)
+                mean_bpd_b = np.mean(bpd_b)
+                neptune.send_metric('test_bpd_b{}'.format(postfix), x=global_iters, y=mean_bpd_b)
+
 
                 if postfix == "":
                     neptune.send_metric('auc', x=global_iters, y=auc_bpd)

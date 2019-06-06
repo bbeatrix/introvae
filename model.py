@@ -1,11 +1,11 @@
 import math
 import keras.backend as K
-from keras.layers import Conv2D, BatchNormalization, Activation, Add, Conv2DTranspose \
-    AveragePooling2D, Input, Dense, Flatten, UpSampling2D, Layer, Reshape, Concatenate, Lambda, MaxPooling2D, LeakyReLU, Conv2DTranspose
+from keras.layers import Conv2D, BatchNormalization, Activation, Add, Conv2DTranspose, \
+     AveragePooling2D, Input, Dense, Flatten, UpSampling2D, Layer, Reshape, Concatenate, Lambda, MaxPooling2D, LeakyReLU, Conv2DTranspose
 from keras.models import Model
 from keras.regularizers import l2
 from keras.initializers import RandomNormal
-
+import numpy as np
 
 def encoder_layers_baseline_mnist(image_size, image_channels, base_channels, bn_allowed, wd, seed):
     """
@@ -13,31 +13,58 @@ def encoder_layers_baseline_mnist(image_size, image_channels, base_channels, bn_
     described in Rosca et al. (arxiv: 1802.06847) in appendix K table 4.
     """
     
+    layers = []
+
     initializer = RandomNormal(mean=0.0, stddev=np.sqrt(0.02), seed=seed)
 
     layers.append(Conv2D(8 , (5, 5), strides=(2, 2), padding='same', kernel_initializer=initializer, bias_initializer=initializer, kernel_regularizer=l2(wd)))
+    layers.append(Activation('relu')) 
+
     layers.append(Conv2D(16, (5, 5), strides=(1, 1), padding='same', kernel_initializer=initializer, bias_initializer=initializer, kernel_regularizer=l2(wd)))
+    layers.append(Activation('relu'))
+
     layers.append(Conv2D(32, (5, 5), strides=(2, 2), padding='same', kernel_initializer=initializer, bias_initializer=initializer, kernel_regularizer=l2(wd)))
+    layers.append(Activation('relu'))
+
     layers.append(Conv2D(64, (5, 5), strides=(1, 1), padding='same', kernel_initializer=initializer, bias_initializer=initializer, kernel_regularizer=l2(wd)))
+    layers.append(Activation('relu'))
+
     layers.append(Conv2D(64, (5, 5), strides=(2, 2), padding='same', kernel_initializer=initializer, bias_initializer=initializer, kernel_regularizer=l2(wd)))
+    layers.append(Activation('relu'))
+
     layers.append(Flatten())
     return layers
 
 
-def generator_layers_baseline_mnist(image_size, image_channels, base_channels, bn_allowed, wd):
+def generator_layers_baseline_mnist(image_size, image_channels, base_channels, bn_allowed, wd, seed):
     """
     We follow Nalisnick et al. (arxiv: 1810.09136).
     """
 
+    layers = []
+
     initializer = RandomNormal(mean=0.0, stddev=np.sqrt(0.02), seed=seed)
 
     layers.append(Dense(64*7*7))
-    layers.append(Reshape(64, 7, 7))
-    layers.append(Conv2DTranspose(32 , (5, 5), strides=(2, 2), padding='same', kernel_initializer=initializer, bias_initializer=initializer, kernel_regularizer=l2(wd)))
-    layers.append(Conv2DTranspose(32 , (5, 5), strides=(2, 2), padding='same', kernel_initializer=initializer, bias_initializer=initializer, kernel_regularizer=l2(wd)))
-    layers.append(Conv2DTranspose(256, (5, 5), strides=(1, 1), padding='same', kernel_initializer=initializer, bias_initializer=initializer, kernel_regularizer=l2(wd)))
-    return layers    
+    layers.append(Reshape((64, 7, 7)))
 
+    layers.append(Conv2DTranspose(32 , (5, 5), strides=(2, 2), padding='same', kernel_initializer=initializer, bias_initializer=initializer, kernel_regularizer=l2(wd)))
+    layers.append(Activation('relu'))
+
+    layers.append(Conv2DTranspose(32 , (5, 5), strides=(2, 2), padding='same', kernel_initializer=initializer, bias_initializer=initializer, kernel_regularizer=l2(wd)))
+    layers.append(Activation('relu'))
+
+    layers.append(Conv2DTranspose(256, (5, 5), strides=(1, 1), padding='same', kernel_initializer=initializer, bias_initializer=initializer, kernel_regularizer=l2(wd)))
+    layers.append(Activation('relu'))    
+
+    layers.append(Conv2D(image_channels, (5, 5), strides=(1, 1), padding='same', kernel_initializer=initializer, bias_initializer=initializer, kernel_regularizer=l2(wd)))
+
+    return layers 
+
+
+def add_observable_output(generator_output, args):
+    generator_output = Activation('sigmoid')(generator_output)
+    return generator_output
 
 
 def encoder_layers_dcgan_univ(image_size, image_channels, base_channels, bn_allowed, wd):
