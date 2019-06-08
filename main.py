@@ -151,7 +151,7 @@ z, z_mean, z_log_var = model.add_sampling(encoder_output, args.sampling, args.sa
 if args.trained_gamma:
     log_gamma = tf.get_variable('log_gamma', [], tf.float32, tf.constant_initializer(value=args.initial_log_gamma))
 else:
-    log_gamma = tf.constant(0.0)
+    log_gamma = tf.constant(args.initial_log_gamma)
 gamma = tf.exp(log_gamma)
 
 encoder = Model(inputs=encoder_input, outputs=[z_mean, z_log_var])
