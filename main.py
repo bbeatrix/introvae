@@ -15,11 +15,16 @@ from sklearn.metrics import roc_auc_score
 
 from keras.utils import to_categorical
 from transformations import Transformer
+import datetime
+
+now = datetime.datetime.now()
 
 import neptune
 
 args = params.getArgs()
 print(args)
+
+args.prefix = args.prefix + now.strftime("%Y%m%d_%H%M%S%f")
 
 neptune.init(project_qualified_name="csadrian/oneclass")
 neptune.create_experiment(params=vars(args), name=args.name)
