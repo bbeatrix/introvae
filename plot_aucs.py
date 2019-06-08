@@ -3,6 +3,8 @@ import pandas as pd
 
 import matplotlib.pyplot as plt
 
+HALF_LOG_TWO_PI = 0.91893
+
 from neptunelib.session import Session
 session = Session()
 project = session.get_projects('csadrian')['csadrian/oneclass']
@@ -13,6 +15,7 @@ tags = ['baseline_fashion_mnist_vs_mnist',\
        'baseline_mnist_vs_fashion_mnist',\
        'adv_mnist_vs_fashion_mnist',\
        'neg_letters_fashion_mnist_vs_mnist',\
+       'neg_letters_half_fashion_mnist_vs_mnist',\
        'neg_kmnist_fashion_mnist_vs_mnist',\
        'neg_fashmnist_fashion_mnist_vs_mnist',\
        'adv_genonly_fashion_mnist_vs_mnist',\
@@ -26,9 +29,12 @@ for tag in tags:
     exps = project.get_experiments(tag=[tag])
 
     auc_bpd_lasts = []
+    test_rec_a_lasts = []
+    test_rec_b_lasts = []
+
     results = []
     for exp in exps:
-        res = exp.get_numeric_channels_values('auc_bpd')
+        res = exp.get_numeric_channels_values('auc_bpd', 'test_rec_a', 'test_rec_b')
         
         if res["x"].iloc[-1] < 100000:
             continue
@@ -37,12 +43,20 @@ for tag in tags:
             continue
 
         results.append(res)
+
         auc_bpd_lasts.append(res["auc_bpd"].iloc[-1])
+        test_rec_a_lasts.append(res["test_rec_a"].iloc[-1] - 28*28*HALF_LOG_TWO_PI)
+        test_rec_b_lasts.append(res["test_rec_b"].iloc[-1] - 28*28*HALF_LOG_TWO_PI)
     if len(results) <= 1:
         continue
     auc_bpd_std = statistics.stdev(auc_bpd_lasts)
     auc_bpd_mean = statistics.mean(auc_bpd_lasts)
-    print(tag, auc_bpd_mean, auc_bpd_std, "cnt: ", len(auc_bpd_lasts))
+    test_rec_a_std = statistics.stdev(test_rec_a_lasts)
+    test_rec_a_mean = statistics.mean(test_rec_a_lasts)
+    test_rec_b_std = statistics.stdev(test_rec_b_lasts)
+    test_rec_b_mean = statistics.mean(test_rec_b_lasts)
+
+    print(tag, 'auc_bpd_mean:', auc_bpd_mean, 'auc_bpd_std:', auc_bpd_std, 'test_rec_a_mean:', test_rec_a_mean, 'test_rec_a_std:', test_rec_a_std, "cnt: ", len(auc_bpd_lasts))
     
     results_df = pd.concat(results)
     results_by_row = results_df.groupby(results_df.x)
