@@ -262,7 +262,7 @@ l_ae2 = tf.reduce_mean(reconstruction_loss(encoder_input, xr_latent))
 zpp_gradients = tf.gradients(l_reg_zpp, [zpp_gen])[0]
 
 assert args.gradreg == 0.0, "Not implemented"
-    
+
 
 if args.margin_inf or args.m < 0.:
     margin_variable = tf.Variable(0., trainable=False)
@@ -315,12 +315,12 @@ else:
 
 if args.aux:
     aux_y = Input(batch_shape=(args.batch_size, transformer.n_transforms), name='aux_y')
-    
+
     aux_dense = Dense(transformer.n_transforms)
     aux_head = aux_dense(aux_encoder(aux_input))
     aux_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=aux_y, logits=aux_head))
     encoder_loss += 10.0*aux_loss 
-    
+
     aux_head_gen = aux_dense(aux_encoder(zpp_gen))
     aux_loss_gen = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=aux_y, logits=aux_head_gen))
     generator_loss += 10.0*aux_loss_gen
@@ -380,6 +380,7 @@ summary_op = tf.summary.merge_all()
 # Main loop
 #
 
+
 print('Start session')
 global_iters = 0
 start_epoch = 0
@@ -389,7 +390,7 @@ with tf.Session() as session:
     session.run([init, train_iterator_init_op, test_iterator_init_op_a, test_iterator_init_op_b, fixed_iterator_init_op])
     if args.neg_dataset is not None:
         session.run([neg_iterator_init_op, neg_test_iterator_init_op])
-    
+
     summary_writer = tf.summary.FileWriter(args.prefix+"/", graph=tf.get_default_graph())
     saver = tf.train.Saver(max_to_keep=None)
     if args.model_path is not None and tf.train.checkpoint_exists(args.model_path):
@@ -404,6 +405,60 @@ with tf.Session() as session:
         #utils.save_kldiv(session, '_'.join([args.prefix, args.test_dataset_a]), start_epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next_a}), OrderedDict({"mean": z_mean, "log_var": z_log_var}), args.test_size)
         #utils.save_kldiv(session, '_'.join([args.prefix, args.test_dataset_b]), start_epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next_b}), OrderedDict({"mean": z_mean, "log_var": z_log_var}), args.test_size)
         #utils.oneclass_eval(args.normal_class, "{}_{}_epoch{}_iter{}.npy".format(args.prefix, 'kldiv', start_epoch, global_iters), margin_np)
+
+    if not args.train:
+        def search_opt_z(get_next_batch, z_update_iters=20, lr=0.1):
+            encoder_zs = []
+            new_zs = []
+
+            temp = set(tf.all_variables())
+            with tf.variable_scope(tf.get_variable_scope(), reuse=tf.AUTO_REUSE):
+                new_z = tf.get_variable("z", [args.batch_size, args.latent_dim], dtype=tf.float32, initializer=tf.zeros_initializer)
+            assign_encoder_z = tf.assign(new_z, z)
+            x_decoded = generator(new_z)
+            z_opt_loss = losses.mse_loss(encoder_input, x_decoded, args.original_shape)
+            z_optimizer = tf.train.AdamOptimizer(learning_rate=0.1)
+            z_grads = z_optimizer.compute_gradients(z_opt_loss, var_list=[new_z])
+            z_apply_grads_op = z_optimizer.apply_gradients(z_grads)
+
+            # newly created params should be initialized
+            uninitialized_vars = set(session.run(tf.report_uninitialized_variables()))
+            #print("uninitialized: \n", uninitialized_vars)
+            session.run(tf.initialize_variables(set(tf.all_variables()) - temp)) # not the proper way but at least this works
+
+            #list_of_variables = tf.all_variables()
+            #uninitialized_vars0 = list(tf.get_variable(name) for name in uninitialized_vars)
+            #print("uninitialized: \n", uninitialized_vars0)
+            #session.run(tf.initialize_variables(uninitialized_vars0))
+            #session.run(tf.initialize_variables([z_optimizer.get_slot(loss, name) for name in optim.get_slot_names()]))
+            #uninitialized_vars = [v for v in tf.global_variables() if v.name.split(':')[0] in report_uninitialized_vars]
+            #print("uninitialized vars: \n", uninitialized_vars)
+            #session.run(tf.variables_initializer(tf.report_uninitialized_variables()))
+            #session.run(tf.local_variables_initializer())
+            # check tht there's no uninitialized var now
+            #uninitialized_vars = set(session.run(tf.report_uninitialized_variables()))
+            #print("uninitialized now: \n", uninitialized_vars)
+
+            nb_batches = args.test_size // args.batch_size
+            for i in range(nb_batches):
+                x_batch = session.run(get_next_batch)
+                encoder_z_np = session.run(z, feed_dict={encoder_input: x_batch})
+                encoder_zs.extend(encoder_z_np)
+                session.run(assign_encoder_z, feed_dict={encoder_input: x_batch})
+                for i in range(z_update_iters):
+                    session.run(z_apply_grads_op, feed_dict={encoder_input: x_batch})
+                new_z_np = session.run(new_z)
+                new_zs.extend(new_z_np)
+            return encoder_zs, new_zs
+
+        encoder_zs_a, new_zs_a = search_opt_z(test_next_a)
+        encoder_zs_b, new_zs_b = search_opt_z(test_next_b)
+        auc_old_z = roc_auc_score(np.concatenate([np.zeros_like(encoder_zs_a), np.ones_like(encoder_zs_b)]), np.linalg.norm(np.concatenate([encoder_zs_a, encoder_zs_b]), axis=1, keepdims=True))
+        auc_new_z = roc_auc_score(np.concatenate([np.zeros_like(new_zs_a), np.ones_like(new_zs_b)]), np.linalg.norm(np.concatenate([new_zs_a, new_zs_b]), axis=1, keepdims=True))
+
+        print("\n auc_old_z: {} \n".format(auc_old_z))
+        print("\n auc_new_z: {} \n".format(auc_new_z))
+        raise SystemExit("Exit intentionally before training.")
 
     for iteration in range(iterations):
         epoch = global_iters * args.batch_size // args.train_size
@@ -443,7 +498,7 @@ with tf.Session() as session:
             #    #x, _, margin_np = session.run([train_next, margin_update_op, margin])
             #    #z_p = np.random.normal(loc=0.0, scale=1.0, size=(args.batch_size, args.latent_dim))
             #    #z_x, x_r, x_p = session.run([z, xr, generator_output], feed_dict={encoder_input: x, generator_input: z_p})
-            
+
             _ = session.run([encoder_apply_grads_op], feed_dict=train_feed_dict)
             #_ = session.run([encoder1_apply_grads_op], feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p, aux_input: x_transformed[:args.batch_size], aux_y: aux_y_np[:args.batch_size]})
             #_ = session.run([encoder2_apply_grads_op], feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p, aux_input: x_transformed[:args.batch_size], aux_y: aux_y_np[:args.batch_size]})
@@ -454,7 +509,7 @@ with tf.Session() as session:
             #    #z_x, x_r, x_p = session.run([z, xr, generator_output], feed_dict={encoder_input: x, generator_input: z_p})
             #    #_ = session.run([generator_apply_grads_op], feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p}) # , aux_input: x_transformed[:args.batch_size], aux_y: aux_y_np[:args.batch_size]
             _ = session.run([generator_apply_grads_op], feed_dict=train_feed_dict)
-            
+
         #_ = session.run([joint_apply_grads_op], feed_dict=train_feed_dict)
 
         #for  j in range(x.shape[0] // args.batch_size):

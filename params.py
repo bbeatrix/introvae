@@ -51,6 +51,7 @@ parser.add_argument('--fixed_negatives_npy', dest="fixed_negatives_npy", type=st
 parser.add_argument('--augment_avg_at_test', dest="augment_avg_at_test", type=str2bool, default=False, help="If True, likelihood is averaged over batch size number of images at test time.")
 
 # training
+parser.add_argument('--train', dest="train", default=True, type=str2bool, help="Skip train loop if set to False.")
 parser.add_argument('--lr', dest="lr", default="0.001", type=float, help="Learning rate for the optimizer.")
 parser.add_argument('--batch_size', dest="batch_size", default=200, type=int, help="Batch size.")
 parser.add_argument('--nb_epoch', dest="nb_epoch", type=int, default=200, help="Number of epochs.")
