@@ -656,8 +656,8 @@ with tf.Session() as session:
                 auc_l2_mean = roc_auc_score(np.concatenate([np.zeros_like(l2_mean_a), np.ones_like(l2_mean_b)]), np.concatenate([l2_mean_a, l2_mean_b]))
                 auc_l2_var = roc_auc_score(np.concatenate([np.zeros_like(l2_var_a), np.ones_like(l2_var_b)]), np.concatenate([l2_var_a, l2_var_b]))
                 auc_nll = roc_auc_score(np.concatenate([np.zeros_like(nll_a), np.ones_like(nll_b)]), np.concatenate([nll_a, nll_b]))
-                auc_normed_nll = roc_auc_score(np.concatenate([np.zeros_like(normed_nll_a), np.ones_like(normed_nll_a)]), np.concatenate([normed_nll_a, normed_nll_b]))
-                auc_nllwrl = roc_auc_score(np.concatenate([np.zeros_like(nllwrl_a), np.ones_like(nllwrl_a)]), np.concatenate([nllwrl_a, nllwrl_b]))
+                auc_normed_nll = roc_auc_score(np.concatenate([np.zeros_like(normed_nll_a), np.ones_like(normed_nll_b)]), np.concatenate([normed_nll_a, normed_nll_b]))
+                auc_nllwrl = roc_auc_score(np.concatenate([np.zeros_like(nllwrl_a), np.ones_like(nllwrl_b)]), np.concatenate([nllwrl_a, nllwrl_b]))
 
                 neptune.send_metric('auc_kl_{}_vs_{}{}'.format(args.test_dataset_a, args.test_dataset_b, postfix), x=global_iters, y=auc_kl)
                 neptune.send_metric('auc_mean_{}_vs_{}{}'.format(args.test_dataset_a, args.test_dataset_b, postfix), x=global_iters, y=auc_mean)
