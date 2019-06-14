@@ -593,7 +593,7 @@ with tf.Session() as session:
                 auc_rec = roc_auc_score(np.concatenate([np.zeros_like(rec_a), np.ones_like(rec_b)]), np.concatenate([rec_a, rec_b]))
                 auc_l2_mean = roc_auc_score(np.concatenate([np.zeros_like(l2_mean_a), np.ones_like(l2_mean_b)]), np.concatenate([l2_mean_a, l2_mean_b]))
                 auc_l2_var = roc_auc_score(np.concatenate([np.zeros_like(l2_var_a), np.ones_like(l2_var_b)]), np.concatenate([l2_var_a, l2_var_b]))
-                auc_neglog_likelihood = roc_auc_score(np.concatenate([np.zeros_like(neglog_likelihood_a), np.ones_like(neglog_likelihood_b)]), np.concatenate([neglog_likelihood_a, neglog_likelihood_b]))
+                auc_nll = roc_auc_score(np.concatenate([np.zeros_like(neglog_likelihood_a), np.ones_like(neglog_likelihood_b)]), np.concatenate([neglog_likelihood_a, neglog_likelihood_b]))
                 auc_normed_nll = roc_auc_score(np.concatenate([np.zeros_like(normed_nll_a), np.ones_like(normed_nll_a)]), np.concatenate([normed_nll_a, normed_nll_b]))
 
                 neptune.send_metric('auc_kl_{}_vs_{}{}'.format(args.test_dataset_a, args.test_dataset_b, postfix), x=global_iters, y=auc_kl)
@@ -602,14 +602,14 @@ with tf.Session() as session:
                 neptune.send_metric('auc_l2_mean_{}_vs_{}{}'.format(args.test_dataset_a, args.test_dataset_b, postfix), x=global_iters, y=auc_l2_mean)
                 neptune.send_metric('auc_l2_var_{}_vs_{}{}'.format(args.test_dataset_a, args.test_dataset_b, postfix), x=global_iters, y=auc_l2_var)
                 neptune.send_metric('auc_neglog_likelihood_{}_vs_{}{}'.format(args.test_dataset_a, args.test_dataset_b, postfix), x=global_iters, y=auc_neglog_likelihood)
-                neptune.send_metric('auc_bpd{}'.format(postfix), x=global_iters, y=auc_neglog_likelihood)
+                neptune.send_metric('auc_bpd{}'.format(postfix), x=global_iters, y=auc_nll)
                 neptune.send_metric('auc_normed_nll{}'.format(postfix), x=global_iters, y=auc_normed_nll)
                 neptune.send_metric('test_bpd_a{}'.format(postfix), x=global_iters, y=np.mean(bpd_a))
                 neptune.send_metric('test_bpd_b{}'.format(postfix), x=global_iters, y=np.mean(bpd_b))
 
 
                 if postfix == "":
-                    neptune.send_metric('auc', x=global_iters, y=auc_bpd)
+                    neptune.send_metric('auc', x=global_iters, y=auc_nll)
                 return kl_a, kl_b, rec_a, rec_b
 
             kl_a, kl_b, rec_a, rec_b = compare(a_result_dict, b_result_dict, args.test_dataset_a, args.test_dataset_b, "")
