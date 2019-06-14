@@ -628,8 +628,8 @@ with tf.Session() as session:
                 l2_var_b = np.linalg.norm(b_result_dict['test_log_var'], axis=1)
                 nll_a = kl_a + rec_a
                 nll_b = kl_b + rec_b
-                nllwrl_a = np.float32(args.reg_lamda) * kl_a + rec_a
-                nllwrl_b = np.float32(args.reg_lamda) * kl_b + rec_b
+                nllwrl_a = np.float32(args.reg_lambda) * kl_a + rec_a
+                nllwrl_b = np.float32(args.reg_lambda) * kl_b + rec_b
 
                 original_dim = np.float32(np.prod(args.original_shape))
                 bpd_a = nll_a / original_dim
