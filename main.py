@@ -310,6 +310,7 @@ if args.generator_adversarial_loss:
     generator_l_adv = args.alpha_reconstructed * l_reg_zr + args.alpha_generated * l_reg_zpp
     generator_loss = generator_l_adv + args.beta * l_ae2 # + args.gradreg * spectreg_loss
 else:
+    generator_l_adv = 0.0
     generator_loss = args.beta * l_ae2 # + args.gradreg * spectreg_loss
 
 
@@ -327,7 +328,7 @@ if args.aux:
 else:
     aux_loss = tf.constant(0.0)
 
-joint_loss = generator_loss + encoder_loss
+joint_loss = generator_l_adv + encoder_loss
 
 #
 # Define training step operations
