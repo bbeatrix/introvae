@@ -492,6 +492,8 @@ with tf.Session() as session:
             fixed_gen_index += args.batch_size
             _ = session.run([encoder_apply_grads_op], feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p, fixed_gen_input: x_fg})
             _ = session.run([generator_apply_grads_op], feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p, fixed_gen_input: x_fg})
+        elif args.joint_training:
+            _ = session.run([joint_apply_grads_op], feed_dict=train_feed_dict)
         else:
             pass
             #for j in range(1):
@@ -509,8 +511,6 @@ with tf.Session() as session:
             #    #z_x, x_r, x_p = session.run([z, xr, generator_output], feed_dict={encoder_input: x, generator_input: z_p})
             #    #_ = session.run([generator_apply_grads_op], feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p}) # , aux_input: x_transformed[:args.batch_size], aux_y: aux_y_np[:args.batch_size]
             _ = session.run([generator_apply_grads_op], feed_dict=train_feed_dict)
-
-        #_ = session.run([joint_apply_grads_op], feed_dict=train_feed_dict)
 
         #for  j in range(x.shape[0] // args.batch_size):
         #for j in range(3):

@@ -58,6 +58,7 @@ parser.add_argument('--nb_epoch', dest="nb_epoch", type=int, default=200, help="
 parser.add_argument('--verbose', dest="verbose", type=int, default=2, help="Logging verbosity: 0-silent, 1-verbose, 2-perEpoch (default).")
 parser.add_argument('--aux', dest="aux", type=str2bool, default=False, help="Use auxiliary training objective of predicting geometric transformations.")
 parser.add_argument('--optimizer', dest="optimizer", type=str, default='rmsprop', help="Optimizer.")
+parser.add_argument('--joint_training', dest="joint_training", type=str2bool, default=False, help="To train the encoder and decoder jointly or separately.")
 
 
 # architecture
