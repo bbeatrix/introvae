@@ -627,9 +627,15 @@ with tf.Session() as session:
                 l2_var_b = np.linalg.norm(b_result_dict['test_log_var'], axis=1)
                 nll_a = kl_a + rec_a
                 nll_b = kl_b + rec_b
+                nllwb_a = np.float32(args.beta) * kl_a + rec_a
+                nllwb_b = np.float32(args.beta) * kl_b + rec_b
+
                 original_dim = np.float32(np.prod(args.original_shape))
                 bpd_a = nll_a / original_dim
                 bpd_b = nll_b / original_dim
+                bpdwb_a = nllwb_a / original_dim
+                bpdwb_b = nllwb_b / original_dim
+
                 normed_nll_a = kl_a + (rec_a / original_dim)
                 normed_nll_b = kl_b + (rec_b / original_dim)
 
@@ -650,6 +656,7 @@ with tf.Session() as session:
                 auc_l2_var = roc_auc_score(np.concatenate([np.zeros_like(l2_var_a), np.ones_like(l2_var_b)]), np.concatenate([l2_var_a, l2_var_b]))
                 auc_nll = roc_auc_score(np.concatenate([np.zeros_like(nll_a), np.ones_like(nll_b)]), np.concatenate([nll_a, nll_b]))
                 auc_normed_nll = roc_auc_score(np.concatenate([np.zeros_like(normed_nll_a), np.ones_like(normed_nll_a)]), np.concatenate([normed_nll_a, normed_nll_b]))
+                auc_nllwb = roc_auc_score(np.concatenate([np.zeros_like(nllwb_a), np.ones_like(nllwb_a)]), np.concatenate([nllwb_a, nllwb_b]))
 
                 neptune.send_metric('auc_kl_{}_vs_{}{}'.format(args.test_dataset_a, args.test_dataset_b, postfix), x=global_iters, y=auc_kl)
                 neptune.send_metric('auc_mean_{}_vs_{}{}'.format(args.test_dataset_a, args.test_dataset_b, postfix), x=global_iters, y=auc_mean)
@@ -659,6 +666,8 @@ with tf.Session() as session:
                 neptune.send_metric('auc_neglog_likelihood_{}_vs_{}{}'.format(args.test_dataset_a, args.test_dataset_b, postfix), x=global_iters, y=auc_nll)
                 neptune.send_metric('auc_bpd{}'.format(postfix), x=global_iters, y=auc_nll)
                 neptune.send_metric('auc_normed_nll{}'.format(postfix), x=global_iters, y=auc_normed_nll)
+                neptune.send_metric('auc_nllwb{}'.format(postfix), x=global_iters, y=auc_nllwb)
+
                 neptune.send_metric('test_bpd_a{}'.format(postfix), x=global_iters, y=np.mean(bpd_a))
                 neptune.send_metric('test_bpd_b{}'.format(postfix), x=global_iters, y=np.mean(bpd_b))
 
