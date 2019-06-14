@@ -570,11 +570,11 @@ with tf.Session() as session:
                 l2_mean_b = np.linalg.norm(b_result_dict['test_mean'], axis=1)
                 l2_var_a = np.linalg.norm(a_result_dict['test_log_var'], axis=1)
                 l2_var_b = np.linalg.norm(b_result_dict['test_log_var'], axis=1)
-                neglog_likelihood_a = kl_a + rec_a
-                neglog_likelihood_b = kl_b + rec_b
+                nll_a = kl_a + rec_a
+                nll_b = kl_b + rec_b
                 original_dim = np.float32(np.prod(args.original_shape))
-                bpd_a = neglog_likelihood_a / original_dim
-                bpd_b = neglog_likelihood_b / original_dim
+                bpd_a = nll_a / original_dim
+                bpd_b = nll_b / original_dim
                 normed_nll_a = kl_a + (rec_a / original_dim)
                 normed_nll_b = kl_b + (rec_b / original_dim)
 
@@ -593,7 +593,7 @@ with tf.Session() as session:
                 auc_rec = roc_auc_score(np.concatenate([np.zeros_like(rec_a), np.ones_like(rec_b)]), np.concatenate([rec_a, rec_b]))
                 auc_l2_mean = roc_auc_score(np.concatenate([np.zeros_like(l2_mean_a), np.ones_like(l2_mean_b)]), np.concatenate([l2_mean_a, l2_mean_b]))
                 auc_l2_var = roc_auc_score(np.concatenate([np.zeros_like(l2_var_a), np.ones_like(l2_var_b)]), np.concatenate([l2_var_a, l2_var_b]))
-                auc_nll = roc_auc_score(np.concatenate([np.zeros_like(neglog_likelihood_a), np.ones_like(neglog_likelihood_b)]), np.concatenate([neglog_likelihood_a, neglog_likelihood_b]))
+                auc_nll = roc_auc_score(np.concatenate([np.zeros_like(nll_a), np.ones_like(nll_b)]), np.concatenate([nll_a, nll_b]))
                 auc_normed_nll = roc_auc_score(np.concatenate([np.zeros_like(normed_nll_a), np.ones_like(normed_nll_a)]), np.concatenate([normed_nll_a, normed_nll_b]))
 
                 neptune.send_metric('auc_kl_{}_vs_{}{}'.format(args.test_dataset_a, args.test_dataset_b, postfix), x=global_iters, y=auc_kl)
@@ -601,7 +601,7 @@ with tf.Session() as session:
                 neptune.send_metric('auc_rec_{}_vs_{}{}'.format(args.test_dataset_a, args.test_dataset_b, postfix), x=global_iters, y=auc_rec)
                 neptune.send_metric('auc_l2_mean_{}_vs_{}{}'.format(args.test_dataset_a, args.test_dataset_b, postfix), x=global_iters, y=auc_l2_mean)
                 neptune.send_metric('auc_l2_var_{}_vs_{}{}'.format(args.test_dataset_a, args.test_dataset_b, postfix), x=global_iters, y=auc_l2_var)
-                neptune.send_metric('auc_neglog_likelihood_{}_vs_{}{}'.format(args.test_dataset_a, args.test_dataset_b, postfix), x=global_iters, y=auc_neglog_likelihood)
+                neptune.send_metric('auc_neglog_likelihood_{}_vs_{}{}'.format(args.test_dataset_a, args.test_dataset_b, postfix), x=global_iters, y=auc_nll)
                 neptune.send_metric('auc_bpd{}'.format(postfix), x=global_iters, y=auc_nll)
                 neptune.send_metric('auc_normed_nll{}'.format(postfix), x=global_iters, y=auc_normed_nll)
                 neptune.send_metric('test_bpd_a{}'.format(postfix), x=global_iters, y=np.mean(bpd_a))
@@ -617,8 +617,8 @@ with tf.Session() as session:
                 compare(a_result_dict, neg_result_dict, args.test_dataset_a, args.neg_dataset, "_neg")
 
         if (global_iters % iterations_per_epoch == 0) and ((epoch + 1) % 10 == 0):
-            np.savez("{}_kl_epoch{}_iter{}".format(args.prefix, epoch+1, global_iters), labels=np.concatenate([np.zeros_like(kl_a), np.ones_like(kl_b)]), neglog_likelihoods=np.concatenate([kl_a, kl_b]))
-            np.savez("{}_rec_epoch{}_iter{}".format(args.prefix, epoch+1, global_iters), labels=np.concatenate([np.zeros_like(rec_a), np.ones_like(rec_b)]), neglog_likelihoods=np.concatenate([rec_a, rec_b]))
+            np.savez("{}_kl_epoch{}_iter{}".format(args.prefix, epoch+1, global_iters), labels=np.concatenate([np.zeros_like(kl_a), np.ones_like(kl_b)]), kl=np.concatenate([kl_a, kl_b]))
+            np.savez("{}_rec_epoch{}_iter{}".format(args.prefix, epoch+1, global_iters), labels=np.concatenate([np.zeros_like(rec_a), np.ones_like(rec_b)]), rec=np.concatenate([rec_a, rec_b]))
 
     neptune.stop()
     if args.model_path is not None:
