@@ -418,7 +418,7 @@ with tf.Session() as session:
             assign_encoder_z = tf.assign(new_z, z)
             x_decoded = generator(new_z)
             z_opt_loss = losses.mse_loss(encoder_input, x_decoded, args.original_shape)
-            z_optimizer = tf.train.AdamOptimizer(learning_rate=0.1)
+            z_optimizer = tf.train.AdamOptimizer(learning_rate=lr)
             z_grads = z_optimizer.compute_gradients(z_opt_loss, var_list=[new_z])
             z_apply_grads_op = z_optimizer.apply_gradients(z_grads)
 
@@ -437,28 +437,42 @@ with tf.Session() as session:
             #session.run(tf.variables_initializer(tf.report_uninitialized_variables()))
             #session.run(tf.local_variables_initializer())
             # check tht there's no uninitialized var now
-            #uninitialized_vars = set(session.run(tf.report_uninitialized_variables()))
+            #uninitialized_vars = set(session.run(tf.report_uninitialized_variables()))sdasd
             #print("uninitialized now: \n", uninitialized_vars)
+
+            encoder_zs_first = []
 
             nb_batches = args.test_size // args.batch_size
             for i in range(nb_batches):
                 x_batch = session.run(get_next_batch)
-                encoder_z_np = session.run(z, feed_dict={encoder_input: x_batch})
-                encoder_zs.extend(encoder_z_np)
                 session.run(assign_encoder_z, feed_dict={encoder_input: x_batch})
+                encoder_z_np = session.run(new_z)
+                encoder_zs.extend(encoder_z_np)
                 for i in range(z_update_iters):
                     session.run(z_apply_grads_op, feed_dict={encoder_input: x_batch})
-                new_z_np = session.run(new_z)
+                    new_z_np = session.run(new_z)
+                    if i == 0:
+                        encoder_zs_first.extend(new_z_np)
                 new_zs.extend(new_z_np)
-            return encoder_zs, new_zs
+            encoder_zs = np.array(encoder_zs)
+            encoder_zs_first = np.array(encoder_zs_first)
 
-        encoder_zs_a, new_zs_a = search_opt_z(test_next_a)
-        encoder_zs_b, new_zs_b = search_opt_z(test_next_b)
-        auc_old_z = roc_auc_score(np.concatenate([np.zeros_like(encoder_zs_a), np.ones_like(encoder_zs_b)]), np.linalg.norm(np.concatenate([encoder_zs_a, encoder_zs_b]), axis=1, keepdims=True))
-        auc_new_z = roc_auc_score(np.concatenate([np.zeros_like(new_zs_a), np.ones_like(new_zs_b)]), np.linalg.norm(np.concatenate([new_zs_a, new_zs_b]), axis=1, keepdims=True))
+            diff = encoder_zs - encoder_zs_first
+            return encoder_zs, new_zs, diff
+
+        encoder_zs_a, new_zs_a, diffs_a = search_opt_z(test_next_a, lr=0.1)
+        encoder_zs_b, new_zs_b, diffs_b = search_opt_z(test_next_b, lr=0.1)
+        
+        label_shape_a = (encoder_zs_a.shape[0], 1)
+        label_shape_b = (encoder_zs_b.shape[0], 1)
+        auc_old_z = roc_auc_score(np.concatenate([np.zeros(label_shape_a), np.ones(label_shape_b)]), np.linalg.norm(np.concatenate([encoder_zs_a, encoder_zs_b]), axis=1, keepdims=True))
+        auc_new_z = roc_auc_score(np.concatenate([np.zeros(label_shape_a), np.ones(label_shape_b)]), np.linalg.norm(np.concatenate([new_zs_a, new_zs_b]), axis=1, keepdims=True))
+        auc_diff_z = roc_auc_score(np.concatenate([np.zeros(label_shape_a), np.ones(label_shape_b)]), np.linalg.norm(np.concatenate([diffs_a, diffs_b]), axis=1, keepdims=True))
 
         print("\n auc_old_z: {} \n".format(auc_old_z))
         print("\n auc_new_z: {} \n".format(auc_new_z))
+        print("\n auc_diff_L2: {} \n".format(auc_diff_z))
+
         raise SystemExit("Exit intentionally before training.")
 
     for iteration in range(iterations):
