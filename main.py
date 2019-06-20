@@ -408,14 +408,14 @@ with tf.Session() as session:
         #utils.oneclass_eval(args.normal_class, "{}_{}_epoch{}_iter{}.npy".format(args.prefix, 'kldiv', start_epoch, global_iters), margin_np)
 
     if not args.train:
-        def search_opt_z(get_next_batch, z_update_iters=20, lr=0.1):
+        def search_opt_z(get_next_batch, test_size, z_update_iters=20, lr=0.1):
             encoder_zs = []
             new_zs = []
 
             temp = set(tf.all_variables())
             with tf.variable_scope(tf.get_variable_scope(), reuse=tf.AUTO_REUSE):
                 new_z = tf.get_variable("z", [args.batch_size, args.latent_dim], dtype=tf.float32, initializer=tf.zeros_initializer)
-            assign_encoder_z = tf.assign(new_z, z)
+            assign_encoder_z = tf.assign(new_z, z_mean)
             x_decoded = generator(new_z)
             z_opt_loss = losses.mse_loss(encoder_input, x_decoded, args.original_shape)
             z_optimizer = tf.train.AdamOptimizer(learning_rate=lr)
@@ -442,32 +442,35 @@ with tf.Session() as session:
 
             encoder_zs_first = []
 
-            nb_batches = args.test_size // args.batch_size
+            nb_batches = test_size // args.batch_size
             for i in range(nb_batches):
                 x_batch = session.run(get_next_batch)
                 session.run(assign_encoder_z, feed_dict={encoder_input: x_batch})
-                encoder_z_np = session.run(new_z)
+                encoder_z_np = session.run(z_mean, feed_dict={encoder_input: x_batch})
+                #encoder_z_np = session.run(new_z)
                 encoder_zs.extend(encoder_z_np)
-                for i in range(z_update_iters):
+                for j in range(z_update_iters):
                     session.run(z_apply_grads_op, feed_dict={encoder_input: x_batch})
                     new_z_np = session.run(new_z)
-                    if i == 0:
+                    if j == 0:
                         encoder_zs_first.extend(new_z_np)
                 new_zs.extend(new_z_np)
             encoder_zs = np.array(encoder_zs)
             encoder_zs_first = np.array(encoder_zs_first)
+            print(encoder_zs.shape)
+            print(encoder_zs)
 
             diff = encoder_zs - encoder_zs_first
             return encoder_zs, new_zs, diff
 
-        encoder_zs_a, new_zs_a, diffs_a = search_opt_z(test_next_a, lr=0.1)
-        encoder_zs_b, new_zs_b, diffs_b = search_opt_z(test_next_b, lr=0.1)
+        encoder_zs_a, new_zs_a, diffs_a = search_opt_z(test_next_a, test_size_a, z_update_iters=20, lr=0.1)
+        encoder_zs_b, new_zs_b, diffs_b = search_opt_z(test_next_b, test_size_b, z_update_iters=20, lr=0.1)
         
         label_shape_a = (encoder_zs_a.shape[0], 1)
         label_shape_b = (encoder_zs_b.shape[0], 1)
-        auc_old_z = roc_auc_score(np.concatenate([np.zeros(label_shape_a), np.ones(label_shape_b)]), np.linalg.norm(np.concatenate([encoder_zs_a, encoder_zs_b]), axis=1, keepdims=True))
-        auc_new_z = roc_auc_score(np.concatenate([np.zeros(label_shape_a), np.ones(label_shape_b)]), np.linalg.norm(np.concatenate([new_zs_a, new_zs_b]), axis=1, keepdims=True))
-        auc_diff_z = roc_auc_score(np.concatenate([np.zeros(label_shape_a), np.ones(label_shape_b)]), np.linalg.norm(np.concatenate([diffs_a, diffs_b]), axis=1, keepdims=True))
+        auc_old_z = roc_auc_score(np.concatenate([np.zeros(label_shape_a), np.ones(label_shape_b)]), np.linalg.norm(np.concatenate([encoder_zs_a, encoder_zs_b]), axis=1))
+        auc_new_z = roc_auc_score(np.concatenate([np.zeros(label_shape_a), np.ones(label_shape_b)]), np.linalg.norm(np.concatenate([new_zs_a, new_zs_b]), axis=1))
+        auc_diff_z = roc_auc_score(np.concatenate([np.zeros(label_shape_a), np.ones(label_shape_b)]), np.linalg.norm(np.concatenate([diffs_a, diffs_b]), axis=1))
 
         print("\n auc_old_z: {} \n".format(auc_old_z))
         print("\n auc_new_z: {} \n".format(auc_new_z))
@@ -619,7 +622,7 @@ with tf.Session() as session:
                 neptune.send_image('fixed_gen_as_negatives', fixed_gen_as_neg)
 
 
-        if False and ((global_iters % iterations_per_epoch == 0) and ((epoch + 1) % 10 == 0)):
+        if ((global_iters % iterations_per_epoch == 0) and ((epoch + 1) % 10 == 0)):
             if args.model_path is not None:
                 saved = saver.save(session, args.model_path + "/model", global_step=global_iters)
                 print('Saved model to ' + saved)
