@@ -1,8 +1,10 @@
 import numpy as np
 import tensorflow as tf
 import tensorflow_datasets as tfds
+from tensorflow_probability import distributions as tfd
 import keras, keras.backend as K
 
+import keras.layers
 from keras.layers import Activation, Input, Dense, Flatten
 from keras.models import Model
 
@@ -65,23 +67,9 @@ else:
     test_size_a = args.test_size
     test_size_b = args.test_size
 
-
 print("train_size: ", train_size)
 print("test_size_a: ", test_size_a)
 print("test_size_b: ", test_size_b)
-
-#if args.dataset == 'cifar10':
-#    ds = data.create_cifar10_unsup_dataset(args.batch_size, args.train_size, args.test_size, args.latent_cloud_size, args.normal_class, args.gcnorm, args.augment)
-#    train_data, train_placeholder, train_dataset, train_iterator, train_iterator_init_op, train_next = ds[0]
-#    test_data, test_placeholder, test_dataset, test_iterator, test_iterator_init_op, test_next = ds[1]
-#    fixed_data, fixed_placeholder, fixed_dataset, fixed_iterator, fixed_iterator_init_op, fixed_next = ds[2]
-#else:
-#    train_dataset, train_iterator, train_iterator_init_op, train_next \
-#         = data.create_dataset(os.path.join(data_path, "train/*.npy"), args.batch_size, args.train_size)
-#    test_dataset, test_iterator, test_iterator_init_op, test_next \
-#         = data.create_dataset(os.path.join(data_path, "test/*.npy"), args.batch_size, args.test_size)
-#    fixed_dataset, fixed_iterator, fixed_iterator_init_op, fixed_next \
-#         = data.create_dataset(os.path.join(data_path, "train/*.npy"), args.batch_size, args.latent_cloud_size)
 
 train_data, train_iterator, train_iterator_init_op, train_next = data.get_dataset(args.dataset, tfds.Split.TRAIN, args.batch_size, train_size, args.augment, args.normal_class, add_obs_noise=args.add_obs_noise)
 fixed_data, fixed_iterator, fixed_iterator_init_op, fixed_next = data.get_dataset(args.dataset, tfds.Split.TRAIN, args.batch_size, args.latent_cloud_size, args.augment, args.normal_class, add_obs_noise=args.add_obs_noise)
@@ -93,7 +81,6 @@ if args.neg_dataset is not None:
     neg_test_size = args.neg_test_size
     neg_data, neg_iterator, neg_iterator_init_op, neg_next = data.get_dataset(args.neg_dataset, tfds.Split.TRAIN, args.batch_size, neg_train_size, args.augment, add_obs_noise=args.add_obs_noise)
     neg_test_data, neg_test_iterator, neg_test_iterator_init_op, neg_test_next = data.get_dataset(args.neg_dataset, tfds.Split.TEST, args.batch_size, neg_test_size, args.augment, add_obs_noise=args.add_obs_noise)
-
 
 args.n_channels = 3 if args.color else 1
 args.original_shape = (args.n_channels, ) + args.shape
@@ -123,7 +110,7 @@ else:
     generator_layers = model.generator_layers_introvae(args.shape, args.base_filter_num, args.generator_use_bn)
 
 
-encoder_input = Input(batch_shape=[args.batch_size] + list(args.original_shape), name='encoder_input')
+encoder_input = tf.placeholder(tf.float32, shape=[args.batch_size] + list(args.original_shape), name='encoder_input') #Input(batch_shape=[args.batch_size] + list(args.original_shape), name='encoder_input')
 
 generator_input = Input(batch_shape=(args.batch_size, args.latent_dim), name='generator_input')
 if args.aux:
@@ -131,9 +118,6 @@ if args.aux:
 if args.neg_dataset is not None:
     neg_input = Input(batch_shape=[args.batch_size] + list(args.original_shape), name='neg_input')
 
-encoder_output = encoder_input
-for layer in encoder_layers:
-    encoder_output = layer(encoder_output)
 
 if args.aux:
     aux_encoder_output = aux_input
@@ -141,48 +125,33 @@ if args.aux:
         aux_encoder_output = layer(aux_encoder_output)
 
 
-generator_output = generator_input
-for layer in generator_layers:
-    generator_output = layer(generator_output)
-
-generator_output = model.add_observable_output(generator_output, args)
-z, z_mean, z_log_var = model.add_sampling(encoder_output, args.sampling, args.sampling_std, args.batch_size, args.latent_dim, args.encoder_wd)
-
 if args.trained_gamma:
     log_gamma = tf.get_variable('log_gamma', [], tf.float32, tf.constant_initializer(value=args.initial_log_gamma))
 else:
     log_gamma = tf.constant(args.initial_log_gamma)
 gamma = tf.exp(log_gamma)
 
-encoder = Model(inputs=encoder_input, outputs=[z_mean, z_log_var])
-generator = Model(inputs=generator_input, outputs=generator_output)
+
+def generator(generator_input):
+  with tf.variable_scope("dec", reuse=tf.AUTO_REUSE):
+    generator_output = generator_input
+    for layer in generator_layers:
+        generator_output = layer(generator_output)
+    return generator_output
+
+def encoder(encoder_input):
+  with tf.variable_scope("enc", reuse=tf.AUTO_REUSE):
+    encoder_output = encoder_input
+    for layer in encoder_layers:
+        encoder_output = layer(encoder_output)
+    return encoder_output
+
 if args.aux:
     aux_encoder = Model(inputs=aux_input, outputs=[aux_encoder_output])
 
 
-if args.separate_discriminator:
-    discriminator_output = encoder_input
-    for layer in encoder_layers:
-        discriminator_output = layer(discriminator_output)
-    _, zd_mean, zd_log_var = model.add_sampling(discriminator_output, args.sampling, args.sampling_std, args.batch_size, args.latent_dim, args.encoder_wd)
-    discriminator = Model(inputs=encoder_input, outputs=[zd_mean, zd_log_var])
-else:
-    discriminator = encoder
-    zd_mean, zd_log_var = z_mean, z_log_var
-
-xr = generator(z)
 reconst_latent_input = Input(batch_shape=(args.batch_size, args.latent_dim), name='reconst_latent_input')
-zr_mean, zr_log_var = discriminator(generator(reconst_latent_input))
-zr_mean_ng, zr_log_var_ng = discriminator(tf.stop_gradient(generator(reconst_latent_input)))
-xr_latent = generator(reconst_latent_input)
-if args.neg_dataset is not None:
-    zn_mean, zn_log_var = discriminator(neg_input)
-
 sampled_latent_input = Input(batch_shape=(args.batch_size, args.latent_dim), name='sampled_latent_input')
-zpp_gen = generator(sampled_latent_input)
-zpp_mean, zpp_log_var = discriminator(zpp_gen)
-#zpp_mean_ng, zpp_log_var_ng = discriminator(tf.stop_gradient(zpp_gen))
-zpp_mean_ng, zpp_log_var_ng = discriminator(tf.stop_gradient(zpp_gen))
 
 global_step = tf.Variable(0, trainable=False)
 
@@ -198,71 +167,109 @@ else:
 
 
 if args.optimizer == 'rmsprop':
-    optimizer = tf.train.RMSPropOptimizer(learning_rate=learning_rate)
-    encoder_optimizer = tf.train.RMSPropOptimizer(learning_rate=learning_rate)
-    generator_optimizer = tf.train.RMSPropOptimizer(learning_rate=learning_rate)
-    joint_optimizer = tf.train.RMSPropOptimizer(learning_rate=learning_rate)
-    if args.aux:
-        aux_optimizer = tf.train.RMSPropOptimizer(learning_rate=learning_rate)
+    optimizer_factory = tf.train.RMSPropOptimizer
 else:
-    optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
-    encoder_optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
-    generator_optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
-    joint_optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
-    if args.aux:
-        aux_optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
+    optimizer_factory = tf.train.AdamOptimizer
 
+optimizer = optimizer_factory(learning_rate=learning_rate)
+encoder_optimizer = optimizer_factory(learning_rate=learning_rate)
+generator_optimizer = optimizer_factory(learning_rate=learning_rate)
+joint_optimizer = optimizer_factory(learning_rate=learning_rate)
+if args.aux:
+    aux_optimizer = optimizer_factory(learning_rate=learning_rate)
 
-if args.separate_discriminator:
-    discriminator_optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
-    print('Discriminator')
-    discriminator.summary()
-
-print('Encoder')
-encoder.summary()
-print('Generator')
-generator.summary()
 
 #
 # Define losses
 #
 
-if args.use_augmented_variance_loss:
-    train_reg_loss = losses.augmented_variance_loss
-else:
-    train_reg_loss = losses.reg_loss
+def make_prior(latent_dim):
+  mean, stddev = tf.zeros([latent_dim]), tf.ones([latent_dim])
+  return tfd.MultivariateNormalDiag(mean, stddev)
 
+def make_encoder(x, latent_dim = None):
+  if latent_dim is None:
+    latent_dim = args.latent_dim
+  out = encoder(x)
+  with tf.variable_scope("enc", reuse=tf.AUTO_REUSE):
+    mean = keras.layers.Dense(latent_dim)(out)
+    stddev = keras.layers.Dense(latent_dim, activation="softplus")(out)
+  return tfd.MultivariateNormalDiag(mean, stddev)
 
+def make_decoder(z):
+  logit = generator(z)
+  if args.obs_noise_model == 'bernoulli':
+    return tfd.Independent(tfd.Bernoulli(logit), len(args.original_shape))
+  else:
+    return tfd.Independent(tfd.Normal(logit, gamma), len(args.original_shape))
+
+#
+# Latent prior
+
+prior = make_prior(args.latent_dim)
+
+#
+# Posteriors for different inputs
+#
+x = encoder_input
+posterior = make_encoder(x)
+#posterior_zr = make_encoder(xr)
+xr = generator(reconst_latent_input)
+xpp = generator(sampled_latent_input)
+xd = generator(sampled_latent_input)
+
+posterior_zr = make_encoder(xr) # Hack!
 if args.neg_dataset is not None:
-    l_reg_neg = train_reg_loss(zn_mean, zn_log_var)
+    posterior_zn = make_encoder(neg_input)
 
-l_reg_z = train_reg_loss(z_mean, z_log_var)
-l_reg_zr_ng = train_reg_loss(zr_mean_ng, zr_log_var_ng)
-l_reg_zpp_ng = train_reg_loss(zpp_mean_ng, zpp_log_var_ng)
-l_reg_zd = train_reg_loss(zd_mean, zd_log_var)
-l_reg_zr = train_reg_loss(zr_mean, zr_log_var)
-l_reg_zpp = train_reg_loss(zpp_mean, zpp_log_var)
+posterior_zr_ng = make_encoder(tf.stop_gradient(xr))
+posterior_zpp = make_encoder(xpp)
+posterior_zpp_ng = make_encoder(tf.stop_gradient(xpp))
+
+#posterior_zd = make_encoder(xd)
+posterior_zd = posterior
+
+z_mean, z_log_var = posterior.mean(), tf.log(posterior.variance())
+zr_mean, zr_log_var = posterior_zr.mean(), tf.log(posterior_zr.variance())
+zpp_mean, zpp_log_var = posterior_zpp.mean(), tf.log(posterior_zpp.variance())
+if args.neg_dataset is not None:
+    zn_mean, zn_log_var = posterior_zn.mean(), tf.log(posterior_zn.variance())
+
+dist = make_decoder(posterior.sample())
+ll = dist.log_prob(x)
+
+dist_xr_latent = make_decoder(posterior_zr.sample())
+ll_xr_latent = dist_xr_latent.log_prob(x)
+
+l_reg_z = tfd.kl_divergence(posterior, prior)
+l_reg_zr_ng = tfd.kl_divergence(posterior_zr_ng, prior)
+l_reg_zpp_ng = tfd.kl_divergence(posterior_zpp_ng, prior)
+l_reg_zd = tfd.kl_divergence(posterior_zd, prior)
+l_reg_zr = tfd.kl_divergence(posterior_zr, prior)
+l_reg_zpp = tfd.kl_divergence(posterior_zpp, prior)
+if args.neg_dataset is not None:
+    posterior_zn = make_encoder(xn)
+    l_reg_neg = tfd.kl_divergence(posterior_zn, prior)
+
+elbo = ll - l_reg_z
+
+l_ae = tf.reduce_mean(ll)
+l_ae2 = tf.reduce_mean(ll_xr_latent)
 
 
-HALF_LOG_TWO_PI = 0.91893
+if args.separate_discriminator:
+    discriminator_output = encoder_input
+    for layer in encoder_layers:
+        discriminator_output = layer(discriminator_output)
+    _, zd_mean, zd_log_var = model.add_sampling(discriminator_output, args.sampling, args.sampling_std, args.batch_size, args.latent_dim, args.encoder_wd)
+    discriminator = Model(inputs=encoder_input, outputs=[zd_mean, zd_log_var])
+else:
+    discriminator = encoder
+    zd_mean, zd_log_var = z_mean, z_log_var
 
-def reconstruction_loss(x, xr):
-    if args.obs_noise_model == 'bernoulli':
-        return -tf.reduce_sum(x * tf.log(tf.maximum(xr, 1e-8)) + (1-x) * tf.log(tf.maximum(1-xr, 1e-8)), [1, 2, 3])
-    else:
-        return tf.reduce_sum(tf.square((x - xr) / gamma) / 2 + log_gamma + HALF_LOG_TWO_PI, [1, 2, 3])
 
-reconst_loss = reconstruction_loss(encoder_input, xr)
-
-#reconst_loss = K.mean(keras.objectives.mean_squared_error(encoder_input, xr), axis=(1,2))
-
-l_ae = tf.reduce_mean(reconstruction_loss(encoder_input, xr))
-l_ae2 = tf.reduce_mean(reconstruction_loss(encoder_input, xr_latent))
-
-zpp_gradients = tf.gradients(l_reg_zpp, [zpp_gen])[0]
-
-assert args.gradreg == 0.0, "Not implemented"
-
+#zpp_gradients = tf.gradients(l_reg_zpp, [zpp_gen])[0]
+#assert args.gradreg == 0.0, "Not implemented"
 
 if args.margin_inf or args.m < 0.:
     margin_variable = tf.Variable(0., trainable=False)
@@ -334,8 +341,18 @@ joint_loss = generator_l_adv + encoder_loss
 # Define training step operations
 #
 
-encoder_params = encoder.trainable_weights
-generator_params = generator.trainable_weights
+encoder_params = []
+
+generator_params = []
+for g_var in tf.global_variables():
+  if g_var.name.startswith('enc'):
+    encoder_params.append(g_var)
+  if g_var.name.startswith('dec'):
+    generator_params.append(g_var)
+
+#encoder_params = encoder.trainable_weights
+#generator_params = generator.trainable_weights
+
 if args.trained_gamma:
     generator_params.append(log_gamma)
 if args.aux:

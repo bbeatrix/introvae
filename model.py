@@ -6,6 +6,7 @@ from keras.models import Model
 from keras.regularizers import l2
 from keras.initializers import RandomNormal
 import numpy as np
+import tensorflow_probability as tfp
 
 def encoder_layers_baseline_mnist(image_size, image_channels, base_channels, bn_allowed, wd, seed):
     """
@@ -62,186 +63,20 @@ def generator_layers_baseline_mnist(image_size, image_channels, base_channels, b
     return layers 
 
 
-def add_observable_output(generator_output, args):
-    generator_output = Activation('sigmoid')(generator_output)
-    return generator_output
 
+def add_observable_output(generator_output, args, gamma):
 
-def encoder_layers_dcgan_univ(image_size, image_channels, base_channels, bn_allowed, wd):
-
-    n_upsample = 0
-    n = image_size[0]
-    while n % 2 == 0 and n>=8:
-        n = n // 2
-        n_upsample += 1
-    start_width = n
-
-    kernel = 4
-    upsamples = 0
-
-    channels = base_channels
-    width = image_size[0]
-    layers = []
-    idx = 0
-    while width >= 8:
-        if n_upsample <= upsamples:
-            border_mode="same"
-            stride = 1
-            activation = "linear"
-            use_bn = False
-        elif idx == 0:
-            border_mode = "same"
-            stride = 1
-            activation = "relu"
-            use_bn = bn_allowed
+    def _add_observable_output_inner(generator_output):
+        if args.obs_noise_model == 'bernoulli':
+            return tfp.distributions.Independent(tfp.distributions.Bernoulli(generator_output), len(args.original_shape))
+        elif args.obs_noise_model == 'gaussian':
+            return tfp.distributions.Independent(tfp.distributions.Normal(loc=generator_output, scale=gamma), len(args.original_shape))
         else:
-            border_mode = "same"
-            stride = 2
-            width = width // 2
-            channels = 2*channels
-            upsamples += 1
-            activation = "relu"
-            use_bn = bn_allowed
-        layers.append(Conv2D(channels, (kernel, kernel), strides=(stride, stride), padding=border_mode, use_bias=False, kernel_regularizer=l2(wd)))
+            raise Exception("ob_noise_modell {} is not implemented.".format(args.obs_noise_model))
+        return generator_output
 
-        if use_bn:
-            layers.append(BatchNormalization(axis=1))
-        if activation == "relu":
-            #layers.append(LeakyReLU(name="encoder_{}".format(idx)))    
-            layers.append(Activation(activation, name="encoder_{}".format(idx)))
+    return Lambda(_add_observable_output_inner, output_shape=(args.batch_size,)+args.original_shape)(generator_output)
 
-        else:
-            layers.append(Activation(activation, name="encoder_{}".format(idx)))
-        idx += 1
-    layers.append(Flatten())
-    return layers
-
-
-def generator_layers_dcgan_univ(image_size, image_channels, base_channels, bn_allowed, wd):
-
-    n = image_size[0]
-    n_upsample = 0
-
-    while n % 2 == 0 and n>=8:
-        n = n // 2
-        n_upsample += 1
-    start_width = n
-    print("start_width", start_width)
-    layers = []
-    channels = 2**n_upsample*base_channels
-    layers.append(Dense(channels*start_width*start_width))
-    layers.append(Reshape((-1, start_width, start_width)))
-
-    size = start_width
-    stride = 2
-    kernel = 4
-    border_mode="same"
-    idx = 0
-    while size < image_size[0]:
-
-        activation="relu"
-        use_bn = bn_allowed
-
-        channels = channels // 2
-        layers.append(Conv2D(channels, (kernel, kernel), use_bias=False, strides=(1, 1), padding=border_mode, kernel_regularizer=l2(wd)))
-        if use_bn:
-            layers.append(BatchNormalization(axis=1))
-        if activation == "relu":
-            #layers.append(LeakyReLU(name="generator_{}".format(idx)))    
-            layers.append(Activation(activation, name="generator_{}".format(idx)))
-        else:
-            layers.append(Activation(activation, name="generator_{}".format(idx)))
-
-        if image_size[0] != size:
-            layers.append(UpSampling2D((stride, stride)))
-            size = size * 2
-        idx += 1
-    layers.append(Conv2D(image_channels, (kernel, kernel), use_bias=False, strides=(1, 1), padding=border_mode, kernel_regularizer=l2(wd)))
-    #layers.append(Activation("tanh", name="generator_{}".format(idx)))
-
-    return layers
-
-
-def encoder_layers_dcgan(image_size, base_channels, bn_allowed, wd):
-    layers = []
-    channels = [base_channels, 2*base_channels, 4*base_channels]
-    kernel = 4
-    for idx, channel in enumerate(channels):
-        if idx == (len(channels)-1):
-            border_mode="valid"
-            stride = 1
-            activation = "linear"
-            use_bn = False
-        else:
-            border_mode = "same"
-            stride = 2
-            activation = "relu"
-            use_bn = bn_allowed
-        layers.append(Conv2D(channel, (kernel, kernel), strides=(stride, stride), padding=border_mode, use_bias=False, kernel_regularizer=l2(wd)))
-        if use_bn:
-            layers.append(BatchNormalization(axis=1))
-        layers.append(Activation(activation, name="encoder_{}".format(idx)))
-    layers.append(Flatten())
-    return layers
-
-
-
-def generator_layers_dcgan(image_size, base_channels, bn_allowed, wd):
-    layers = []
-    channels = [4*base_channels, 2*base_channels, base_channels, 3]
-    layers.append(Reshape((-1, 2, 2)))
-    stride = 2
-    kernel = 4
-    for idx, channel in enumerate(channels):
-        if False and idx == 0:
-            sizeX *= 4
-            sizeY *= 4
-            border_mode="valid"
-        else:
-            border_mode = "same"
-        if idx == (len(channels)-1):
-            activation = "linear"
-            use_bn = False
-        else:
-            activation="relu"
-            use_bn = bn_allowed
-        layers.append(Conv2DTranspose(channel, (kernel, kernel), use_bias=False, strides=(stride, stride), padding=border_mode, kernel_regularizer=l2(wd)))
-        if use_bn:
-            layers.append(BatchNormalization(axis=1))
-        layers.append(Activation(activation, name="generator_{}".format(idx)))
-    return layers
-
-
-def encoder_layers_deepsvdd(image_size, base_channels=32, bn_allowed=True):
-    layers = []
-    for i in range(0, 3):
-        layers.append(Conv2D(base_channels*(2**i), (5, 5), padding='same', kernel_initializer='glorot_uniform', name='encoder_conv_'+str(i)))
-        if bn_allowed:
-            layers.append(BatchNormalization(axis=1, name='encoder_bn_'+str(i)))
-        # layers.append(Activation('relu'))
-        layers.append(LeakyReLU(alpha=0.1))
-        layers.append(MaxPooling2D(pool_size=(2, 2), strides=None, padding='valid', name='encoder_maxpool_'+str(i)))
-    layers.append(Flatten(name='encoder_reshape'))
-    return layers
-
-def generator_layers_deepsvdd(image_size, base_channels=32, bn_allowed=True):
-    layers = []
-    layers.append(Reshape((-1, 1, 1), name='generator_reshape'))
-    layers.append(Lambda(lambda x: x * K.ones( ((2**2)*base_channels, 4, 4)   )))
-    # layers.append(Activation('relu'))
-    # layers.append(LeakyReLU(alpha=0.1))
-    for i in reversed(range(0, 3)):
-        layers.append(Conv2D(base_channels*(2**i), (5, 5), padding='same', kernel_initializer='glorot_uniform', name='generator_conv_'+str(2-i)))
-        if bn_allowed:
-            layers.append(BatchNormalization(axis=1, name='generator_bn_'+str(2-i)))
-        # layers.append(Activation('relu'))
-        layers.append(LeakyReLU(alpha=0.1))
-        layers.append(UpSampling2D(size=(2, 2), name='generator_upsample_'+str(2-i)))
-    layers.append(Conv2D(3, (5, 5), padding='same', kernel_initializer='glorot_uniform', name='generator_conv_'+str(3)))
-    if bn_allowed:
-            layers.append(BatchNormalization(axis=1, name='generator_bn_'+str(3)))
-    #layers.append(Activation('tanh'))
-    return layers
 
 def encoder_layers_introvae(image_size, base_channels, bn_allowed):
     layers = []
@@ -331,24 +166,3 @@ def residual_block(model_type, kernels, filters, block, bn_allowed, stage='a', l
         return x
 
     return identity_block
-
-
-def add_sampling(hidden, sampling, sampling_std, batch_size, latent_dim, wd):
-    z_mean = Dense(latent_dim, kernel_regularizer=l2(wd))(hidden)
-    if not sampling:
-        z_log_var = Lambda(lambda x: 0*x, output_shape=[latent_dim])(z_mean)
-        return z_mean, z_mean, z_log_var
-    else:
-        if sampling_std > 0:
-            z_log_var = Lambda(lambda x: 0*x + K.log(K.square(sampling_std)), output_shape=[latent_dim])(z_mean)
-        else:
-            z_log_var = Dense(latent_dim, kernel_regularizer=l2(wd))(hidden)
-
-        def sampling(inputs):
-            z_mean, z_log_var = inputs
-            epsilon = K.random_normal(shape=(batch_size, latent_dim), mean=0.)
-            return z_mean + K.exp(z_log_var / 2) * epsilon
-
-        z = Lambda(sampling, output_shape=(latent_dim,))([z_mean, z_log_var])
-
-        return z, z_mean, z_log_var
