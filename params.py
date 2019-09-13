@@ -49,6 +49,7 @@ parser.add_argument('--fixed_gen_max_epoch', dest="fixed_gen_max_epoch", type=in
 parser.add_argument('--fixed_gen_num', dest="fixed_gen_num", type=int, default=10000, help="Number of generated images used as negative samples.")
 parser.add_argument('--fixed_negatives_npy', dest="fixed_negatives_npy", type=str, default=None, help="Use images from npy file as fixed negative samples.")
 parser.add_argument('--augment_avg_at_test', dest="augment_avg_at_test", type=str2bool, default=False, help="If True, likelihood is averaged over batch size number of images at test time.")
+parser.add_argument('--neg_prior', dest="neg_prior", type=str2bool, default=False, help="Use different prior for negative samples if True.")
 
 # training
 parser.add_argument('--train', dest="train", default=True, type=str2bool, help="Skip train loop if set to False.")

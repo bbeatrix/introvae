@@ -20,6 +20,7 @@ import datetime
 now = datetime.datetime.now()
 
 import neptune
+#neptune.init(backend=neptune.OfflineBackend())
 
 args = params.getArgs()
 print(args)
@@ -274,11 +275,21 @@ else:
     margin_update_op = tf.assign(margin, margin)
 
 #encoder_l_adv = args.reg_lambda * l_reg_z + args.alpha * K.maximum(0., margin - l_reg_zr_ng) + args.alpha * K.maximum(0., margin - l_reg_zpp_ng)
-discriminator_loss = args.reg_lambda * l_reg_zd + args.alpha_reconstructed * K.maximum(0., margin - l_reg_zr_ng) + args.alpha_generated * K.maximum(0., margin - l_reg_zpp_ng)
+if args.neg_prior:
+    l_reg_zr_ng = train_reg_loss(10 * K.ones(shape=(args.batch_size, args.latent_dim)) - zr_mean_ng, zr_log_var)
+    l_reg_zpp_ng = train_reg_loss(10 * K.ones(shape=(args.batch_size, args.latent_dim)) - zpp_mean_ng, zpp_log_var_ng)
+    discriminator_loss = args.reg_lambda * l_reg_zd + args.alpha_reconstructed * l_reg_zr_ng + args.alpha_generated * l_reg_zpp_ng
+else:
+    discriminator_loss = args.reg_lambda * l_reg_zd + args.alpha_reconstructed * K.maximum(0., margin - l_reg_zr_ng) + args.alpha_generated * K.maximum(0., margin - l_reg_zpp_ng)
 #discriminator_loss = args.reg_lambda * l_reg_zd + args.alpha_reconstructed * (1.0 / l_reg_zr_ng) + args.alpha_generated * (1.0 / l_reg_zpp_ng)
 
 if args.neg_dataset is not None:
-    discriminator_loss +=  args.alpha_neg * K.maximum(0., margin - l_reg_neg)
+    if args.neg_prior:
+        l_reg_neg = train_reg_loss(10 * K.ones(shape=(args.batch_size, args.latent_dim)) - zn_mean, zn_log_var)
+        discriminator_loss += args.alpha_neg * l_reg_neg
+    else:
+        discriminator_loss +=  args.alpha_neg * K.maximum(0., margin - l_reg_neg)
+
 if args.random_images_as_negative:
     zn_mean, zn_log_var = encoder(tf.clip_by_value(tf.abs(tf.random_normal( [args.batch_size] + list(args.original_shape) )), 0.0, 1.0))
     l_reg_noise = train_reg_loss(zn_mean, zn_log_var)
@@ -302,8 +313,8 @@ else:
     encoder_l_adv = discriminator_loss
 
 encoder_loss = encoder_l_adv + args.beta * l_ae #+ args.gradreg * spectreg_loss
-encoder1_loss = args.reg_lambda * l_reg_zd  + args.beta * l_ae # + args.gradreg * spectreg_loss
-encoder2_loss = args.alpha_reconstructed * K.maximum(0., margin - l_reg_zr_ng) + args.alpha_generated * K.maximum(0., margin - l_reg_zpp_ng) + args.beta * l_ae # + args.gradreg * spectreg_loss
+#encoder1_loss = args.reg_lambda * l_reg_zd  + args.beta * l_ae # + args.gradreg * spectreg_loss
+#encoder2_loss = args.alpha_reconstructed * K.maximum(0., margin - l_reg_zr_ng) + args.alpha_generated * K.maximum(0., margin - l_reg_zpp_ng) + args.beta * l_ae # + args.gradreg * spectreg_loss
 
 
 if args.generator_adversarial_loss:
