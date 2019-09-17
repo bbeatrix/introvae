@@ -276,8 +276,8 @@ else:
 
 #encoder_l_adv = args.reg_lambda * l_reg_z + args.alpha * K.maximum(0., margin - l_reg_zr_ng) + args.alpha * K.maximum(0., margin - l_reg_zpp_ng)
 if args.neg_prior:
-    l_reg_zr_ng = train_reg_loss(10 * K.ones(shape=(args.batch_size, args.latent_dim)) - zr_mean_ng, zr_log_var)
-    l_reg_zpp_ng = train_reg_loss(10 * K.ones(shape=(args.batch_size, args.latent_dim)) - zpp_mean_ng, zpp_log_var_ng)
+    l_reg_zr_ng = train_reg_loss(args.neg_prior_mean_coeff * K.ones(shape=(args.batch_size, args.latent_dim)) - zr_mean_ng, zr_log_var)
+    l_reg_zpp_ng = train_reg_loss(args.neg_prior_mean_coeff * K.ones(shape=(args.batch_size, args.latent_dim)) - zpp_mean_ng, zpp_log_var_ng)
     discriminator_loss = args.reg_lambda * l_reg_zd + args.alpha_reconstructed * l_reg_zr_ng + args.alpha_generated * l_reg_zpp_ng
 else:
     discriminator_loss = args.reg_lambda * l_reg_zd + args.alpha_reconstructed * K.maximum(0., margin - l_reg_zr_ng) + args.alpha_generated * K.maximum(0., margin - l_reg_zpp_ng)
