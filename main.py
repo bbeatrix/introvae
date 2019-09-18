@@ -316,6 +316,7 @@ encoder_loss = encoder_l_adv + args.beta * l_ae #+ args.gradreg * spectreg_loss
 #encoder1_loss = args.reg_lambda * l_reg_zd  + args.beta * l_ae # + args.gradreg * spectreg_loss
 #encoder2_loss = args.alpha_reconstructed * K.maximum(0., margin - l_reg_zr_ng) + args.alpha_generated * K.maximum(0., margin - l_reg_zpp_ng) + args.beta * l_ae # + args.gradreg * spectreg_loss
 
+encoder_loss += args.mmd_lambda * losses.mmd_penalty(args, sample_qz=z, sample_pz=sampled_latent_input)
 
 if args.generator_adversarial_loss:
     generator_l_adv = args.alpha_reconstructed * l_reg_zr + args.alpha_generated * l_reg_zpp
@@ -476,7 +477,7 @@ with tf.Session() as session:
 
         encoder_zs_a, new_zs_a, diffs_a = search_opt_z(test_next_a, test_size_a, z_update_iters=20, lr=0.1)
         encoder_zs_b, new_zs_b, diffs_b = search_opt_z(test_next_b, test_size_b, z_update_iters=20, lr=0.1)
-        
+
         label_shape_a = (encoder_zs_a.shape[0], 1)
         label_shape_b = (encoder_zs_b.shape[0], 1)
         auc_old_z = roc_auc_score(np.concatenate([np.zeros(label_shape_a), np.ones(label_shape_b)]), np.linalg.norm(np.concatenate([encoder_zs_a, encoder_zs_b]), axis=1))

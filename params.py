@@ -51,6 +51,7 @@ parser.add_argument('--fixed_negatives_npy', dest="fixed_negatives_npy", type=st
 parser.add_argument('--augment_avg_at_test', dest="augment_avg_at_test", type=str2bool, default=False, help="If True, likelihood is averaged over batch size number of images at test time.")
 parser.add_argument('--neg_prior', dest="neg_prior", type=str2bool, default=False, help="Use different prior for negative samples if True.")
 parser.add_argument('--neg_prior_mean_coeff', dest="neg_prior_mean_coeff", type=int, default=10, help="Coeff of mean if the negative prior is shifted Gaussian.")
+parser.add_argument('--mmd_lambda', dest="mmd_lambda", type=float, default=0.0, help="Weight of MMD loss term in encoder loss.")
 
 # training
 parser.add_argument('--train', dest="train", default=True, type=str2bool, help="Skip train loop if set to False.")
