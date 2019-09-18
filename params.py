@@ -88,6 +88,7 @@ parser.add_argument('--prefix', dest="prefix", default="trash", help="File prefi
 parser.add_argument('--model_path', dest="model_path", default=None, help="Path to saved networks. If None, build networks from scratch.")
 
 # micellaneous
+parser.add_argument('--tags', dest="tags", type=str, default="junk", help="Tags for the experiments, comma separated.")
 parser.add_argument('--memory_share', dest="memory_share", type=float, default=0.95, help="Fraction of memory that can be allocated to this process.")
 parser.add_argument('--frequency', dest="frequency", type=int, default=20, help="Image saving frequency.")
 parser.add_argument('--save_latent', dest="save_latent", type=str2bool, default=False, help="If True, then save latent pointcloud.")

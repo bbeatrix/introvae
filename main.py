@@ -29,6 +29,8 @@ args.prefix = args.prefix + now.strftime("%Y%m%d_%H%M%S%f")
 
 neptune.init(project_qualified_name="csadrian/oneclass")
 neptune.create_experiment(params=vars(args), name=args.name)
+for tag in args.tags.split(','):
+               neptune.append_tag(tag)
 
 #
 # Config
