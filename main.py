@@ -285,7 +285,7 @@ else:
 
 if args.neg_dataset is not None:
     if args.neg_prior:
-        l_reg_neg = train_reg_loss(10 * K.ones(shape=(args.batch_size, args.latent_dim)) - zn_mean, zn_log_var)
+        l_reg_neg = train_reg_loss(args.neg_prior_mean_coeff * K.ones(shape=(args.batch_size, args.latent_dim)) - zn_mean, zn_log_var)
         discriminator_loss += args.alpha_neg * l_reg_neg
     else:
         discriminator_loss +=  args.alpha_neg * K.maximum(0., margin - l_reg_neg)
