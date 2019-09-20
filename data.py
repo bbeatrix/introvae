@@ -9,7 +9,7 @@ import os
 K.set_image_data_format('channels_first')
 
 
-def get_dataset(dataset, split, batch_size, limit, augment=False, normal_class=-1, outliers=False, add_obs_noise=False):
+def get_dataset(args, dataset, split, batch_size, limit, augment=False, normal_class=-1, outliers=False, add_obs_noise=False):
 
     if dataset == 'emnist-letters':
         dataset = 'emnist/letters'
@@ -43,9 +43,23 @@ def get_dataset(dataset, split, batch_size, limit, augment=False, normal_class=-
 
     if add_obs_noise:
         ds = ds.map(lambda x: x + tf.random.uniform(x.shape))
-    
+
+    image_width = ds.output_shapes[0].value
+    image_height = ds.output_shapes[1].value
+    image_channels = ds.output_shapes[2].value
+
+    if image_width != args.shape[0] or image_height != args.shape[1]:
+        print('Resize (crop/pad) images to taget shape.')
+        ds = ds.map(lambda x: tf.image.resize_image_with_crop_or_pad(x, args.shape[0], args.shape[1]))
+    if image_channels != 3 and args.color:
+        print('Transform grayscale images to rgb.')
+        ds = ds.map(lambda x: tf.image.grayscale_to_rgb(x))
+    elif image_channels !=1 and not args.color:
+        print('Transform rgb images to grayscale.')
+        ds = ds.map(lambda x: tf.image.rgb_to_grayscale(x))
+
     ds = ds.map(lambda x: x / 255.)
-        
+
     if augment:
         ds = ds.map(lambda x: augment_transforms(x)) \
                .map(lambda x: tf.clip_by_value(x, -1, 1))
