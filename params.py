@@ -52,6 +52,7 @@ parser.add_argument('--augment_avg_at_test', dest="augment_avg_at_test", type=st
 parser.add_argument('--neg_prior', dest="neg_prior", type=str2bool, default=False, help="Use different prior for negative samples if True.")
 parser.add_argument('--neg_prior_mean_coeff', dest="neg_prior_mean_coeff", type=int, default=10, help="Coeff of mean if the negative prior is shifted Gaussian.")
 parser.add_argument('--mmd_lambda', dest="mmd_lambda", type=float, default=0.0, help="Weight of MMD loss term in encoder loss.")
+parser.add_argument('--priors_means_same_coords', dest="priors_means_same_coords", type=int, default=0, help="Number of same coordinates of means of the two priors.")
 
 # training
 parser.add_argument('--train', dest="train", default=True, type=str2bool, help="Skip train loop if set to False.")

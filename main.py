@@ -277,8 +277,12 @@ else:
 
 #encoder_l_adv = args.reg_lambda * l_reg_z + args.alpha * K.maximum(0., margin - l_reg_zr_ng) + args.alpha * K.maximum(0., margin - l_reg_zpp_ng)
 if args.neg_prior:
-    l_reg_zr_ng = train_reg_loss(args.neg_prior_mean_coeff * K.ones(shape=(args.batch_size, args.latent_dim)) - zr_mean_ng, zr_log_var)
-    l_reg_zpp_ng = train_reg_loss(args.neg_prior_mean_coeff * K.ones(shape=(args.batch_size, args.latent_dim)) - zpp_mean_ng, zpp_log_var_ng)
+    assert (args.priors_means_same_coords < args.latent_dim), "Number of same mean coordinates of 1st and 2nd prior should be smaller than dimension of latent code."
+    neg_prior_mean = args.neg_prior_mean_coeff * tf.concat((tf.zeros(shape=(args.batch_size, args.priors_means_same_coords)),
+                                                            tf.ones(shape=(args.batch_size, args.latent_dim - args.priors_means_same_coords))),
+                                                            axis=1)
+    l_reg_zr_ng = train_reg_loss(zr_mean_ng - neg_prior_mean, zr_log_var)
+    l_reg_zpp_ng = train_reg_loss(zpp_mean_ng - neg_prior_mean, zpp_log_var_ng)
     discriminator_loss = args.reg_lambda * l_reg_zd + args.alpha_reconstructed * l_reg_zr_ng + args.alpha_generated * l_reg_zpp_ng
 else:
     discriminator_loss = args.reg_lambda * l_reg_zd + args.alpha_reconstructed * K.maximum(0., margin - l_reg_zr_ng) + args.alpha_generated * K.maximum(0., margin - l_reg_zpp_ng)
@@ -286,7 +290,7 @@ else:
 
 if args.neg_dataset is not None:
     if args.neg_prior:
-        l_reg_neg = train_reg_loss(args.neg_prior_mean_coeff * K.ones(shape=(args.batch_size, args.latent_dim)) - zn_mean, zn_log_var)
+        l_reg_neg = train_reg_loss(zn_mean - neg_prior_mean, zn_log_var)
         discriminator_loss += args.alpha_neg * l_reg_neg
     else:
         discriminator_loss +=  args.alpha_neg * K.maximum(0., margin - l_reg_neg)
