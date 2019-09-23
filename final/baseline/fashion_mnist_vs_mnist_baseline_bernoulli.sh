@@ -23,7 +23,7 @@ tags="baseline,${obs_noise_model},${model_architecture},${test_dataset_a},${test
 d=$(date +%Y-%m-%d-%H:%M:%S)
 neg_prior_mean_coeff=0
 
-for seed in 1 2 3 4 5
+for seed in 5
 do
     name_prefix="${d}_FINAL_baseline_bernoulli_1"
     name="${name_prefix}_${initial_log_gamma}_${test_dataset_a}_vs_${test_dataset_b}_${model_architecture}_alpha_gen=${alpha_generated}_alpha_neg=${alpha_neg}_neg_dataset=${neg_dataset}_nc=${normal_class}_seed=${seed}"
