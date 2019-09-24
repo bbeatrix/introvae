@@ -14,7 +14,7 @@ def check_crit(exp, crit):
   return True
 
 crits = {}
-crits['szepkep_letters'] = {'test_dataset_a': 'fashion_mnist', 'test_dataset_b': 'mnist', 'obs_noise_model': 'bernoulli', 'neg_dataset': 'emnist-letters' }
+crits['szepkep_letters'] = {'test_dataset_a': 'fashion_mnist', 'test_dataset_b': 'mnist', 'obs_noise_model': 'bernoulli', 'neg_dataset': 'emnist-letters', 'neg_prior_mean_coeff': 8 }
 
 channels = ['auc_bpd']
 exps = project.get_experiments()
