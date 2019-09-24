@@ -25,7 +25,7 @@ for key, crit in crits.items():
       continue
     vals = exp.get_logs()
     for channel in channels:
-        res[channel].append(vals[channel])
+        res[channel].append(float(vals[channel]['y']))
   for channel in channels:
     v = np.array(res[channel])
     mean = np.mean(v)
