@@ -13,11 +13,23 @@ def check_crit(params, crit):
   return True
 
 crits = {}
-crits['szepkep_baseline'] ={'test_dataset_a': 'fashion_mnist', 'test_dataset_b': 'mnist', 'obs_noise_model': 'bernoulli', 'neg_dataset': 'None', 'alpha_generated': 0 }
-crits['szepkep_letters'] = {'test_dataset_a': 'fashion_mnist', 'test_dataset_b': 'mnist', 'obs_noise_model': 'bernoulli', 'neg_dataset': 'emnist-letters', 'neg_prior_mean_coeff': 8 }
-crits['szepkep_kmnist'] =  {'test_dataset_a': 'fashion_mnist', 'test_dataset_b': 'mnist', 'obs_noise_model': 'bernoulli', 'neg_dataset': 'kmnist',         'neg_prior_mean_coeff': 8 }
-crits['szepkep_noise'] =   {'test_dataset_a': 'fashion_mnist', 'test_dataset_b': 'mnist', 'obs_noise_model': 'bernoulli', 'neg_dataset': 'uniform-noise',         'neg_prior_mean_coeff': 8 }
-crits['szepkep_adv'] =     {'test_dataset_a': 'fashion_mnist', 'test_dataset_b': 'mnist', 'obs_noise_model': 'bernoulli', 'neg_dataset': 'None',         'neg_prior_mean_coeff': 8, 'alpha_generated': 1 }
+#crits['szepkep_baseline'] ={'test_dataset_a': 'fashion_mnist', 'test_dataset_b': 'mnist', 'obs_noise_model': 'bernoulli', 'neg_dataset': 'None', 'alpha_generated': 0.0 }
+#crits['szepkep_letters'] = {'test_dataset_a': 'fashion_mnist', 'test_dataset_b': 'mnist', 'obs_noise_model': 'bernoulli', 'neg_dataset': 'emnist-letters', 'neg_prior_mean_coeff': 8 }
+#crits['szepkep_kmnist'] =  {'test_dataset_a': 'fashion_mnist', 'test_dataset_b': 'mnist', 'obs_noise_model': 'bernoulli', 'neg_dataset': 'kmnist', 'neg_prior_mean_coeff': 8 }
+#crits['szepkep_noise'] =   {'test_dataset_a': 'fashion_mnist', 'test_dataset_b': 'mnist', 'obs_noise_model': 'bernoulli', 'neg_dataset': 'uniform-noise', 'neg_prior_mean_coeff': 8 }
+#crits['szepkep_adv'] =     {'test_dataset_a': 'fashion_mnist', 'test_dataset_b': 'mnist', 'obs_noise_model': 'bernoulli', 'neg_dataset': 'None', 'neg_prior_mean_coeff': 8, 'alpha_generated': 1.0 }
+
+#crits['fashion_mnist_vs_mnist_baseline_bernoulli'] = {'test_dataset_a': 'fashion_mnist', 'test_dataset_b': 'mnist', 'obs_noise_model': 'bernoulli', 'neg_dataset': 'None', 'alpha_generated': 0.0 }
+#crits['fashion_mnist_vs_mnist_baseline_gaussian'] = {'test_dataset_a': 'fashion_mnist', 'test_dataset_b': 'mnist', 'obs_noise_model': 'gaussian', 'neg_dataset': 'None', 'alpha_generated': 0.0 }
+
+#crits['mnist_vs_fashion_mnist_baseline_bernoulli'] = {'test_dataset_a': 'mnist', 'test_dataset_b': 'fashion_mnist', 'obs_noise_model': 'bernoulli', 'neg_dataset': 'None', 'alpha_generated': 0.0 }
+#crits['mnist_vs_fashion_mnist_baseline_gaussian'] = {'test_dataset_a': 'mnist', 'test_dataset_b': 'fashion_mnist', 'obs_noise_model': 'gaussian', 'neg_dataset': 'None', 'alpha_generated': 0.0 }
+
+#crits['cifar10_vs_svhn_baseline_bernoulli'] = {'test_dataset_a': 'cifar10', 'test_dataset_b': 'svhn_cropped', 'obs_noise_model': 'bernoulli', 'neg_dataset': 'None', 'alpha_generated': 0.0 }
+#crits['cifar10_vs_svhn_baseline_gaussian'] = {'test_dataset_a': 'cifar10', 'test_dataset_b': 'svhn_cropped', 'obs_noise_model': 'gaussian', 'neg_dataset': 'None', 'alpha_generated': 0.0, 'model_architecture': 'dcgan_univ', 'trained_gamma': 'False', 'reg_lambda': 1.0, 'optimizer': 'rmsprop', 'encoder_use_bn': 'False'}
+
+#crits['svhn_vs_cifar10_baseline_bernoulli'] = {'test_dataset_a': 'svhn_cropped', 'test_dataset_b': 'cifar10', 'obs_noise_model': 'bernoulli', 'neg_dataset': 'None', 'alpha_generated': 0.0 }
+crits['svhn_vs_cifar10_baseline_gaussian'] = {'test_dataset_a': 'svhn_cropped', 'test_dataset_b': 'cifar10', 'obs_noise_model': 'gaussian', 'neg_dataset': 'None', 'alpha_generated': 0.0 }
 
 
 channels = ['auc_bpd', 'auc_kl', 'auc_mean', 'test_bpd_a', 'test_bpd_b']
@@ -31,6 +43,8 @@ for key, crit in crits.items():
     params = exp._my_params
     if not check_crit(params, crit):
       continue
+    else:
+      print(exp.id)
     vals = exp.get_logs()
     for channel in channels:
       if channel in vals:
