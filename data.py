@@ -13,6 +13,10 @@ def get_dataset(args, dataset, split, batch_size, limit, augment=False, normal_c
 
     if dataset == 'emnist-letters':
         dataset = 'emnist/letters'
+    if dataset == 'imagenet':
+        dataset = 'downsampled_imagenet/32x32'
+        if split == tfds.Split.TEST:
+            split = tfds.Split.VALIDATION
 
     from glob import glob
     if dataset == 'tiny-imagenet-200':
