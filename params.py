@@ -27,6 +27,7 @@ parser.add_argument('--num_classes', dest="num_classes", default=10, type=int, h
 parser.add_argument('--neg_dataset', dest='neg_dataset', default=None, type=str, help="Negative samples dataset")
 parser.add_argument('--obs_noise_model', dest='obs_noise_model', default='gaussian', type=str, help="Noise model in the observable space. Can be: bernoulli, gaussian")
 parser.add_argument('--add_obs_noise', dest='add_obs_noise', default=False, type=str2bool, help="Adds additive [0,1) uniform noise to input.")
+parser.add_argument('--add_iso_noise_to_neg', dest='add_iso_noise_to_neg', default=False, type=str2bool, help="Adds isotropic gaussian noise to the negative dataset.")
 parser.add_argument('--neg_train_size', dest="neg_train_size", type=int, default=50000, help="Train set size for negative set.")
 parser.add_argument('--neg_test_size', dest="neg_test_size", type=int, default=10000, help="Test set size for negative set.")
 

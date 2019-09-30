@@ -94,8 +94,8 @@ test_data_b, test_iterator_b, test_iterator_init_op_b, test_next_b = data.get_da
 if args.neg_dataset is not None:
     neg_train_size = args.neg_train_size
     neg_test_size = args.neg_test_size
-    neg_data, neg_iterator, neg_iterator_init_op, neg_next = data.get_dataset(args, args.neg_dataset, tfds.Split.TRAIN, args.batch_size, neg_train_size, args.augment, add_obs_noise=args.add_obs_noise)
-    neg_test_data, neg_test_iterator, neg_test_iterator_init_op, neg_test_next = data.get_dataset(args, args.neg_dataset, tfds.Split.TEST, args.batch_size, neg_test_size, args.augment, add_obs_noise=args.add_obs_noise)
+    neg_data, neg_iterator, neg_iterator_init_op, neg_next = data.get_dataset(args, args.neg_dataset, tfds.Split.TRAIN, args.batch_size, neg_train_size, args.augment, add_obs_noise=args.add_obs_noise, add_iso_noise=args.add_iso_noise_to_neg)
+    neg_test_data, neg_test_iterator, neg_test_iterator_init_op, neg_test_next = data.get_dataset(args, args.neg_dataset, tfds.Split.TEST, args.batch_size, neg_test_size, args.augment, add_obs_noise=args.add_obs_noise, add_iso_noise=args.add_iso_noise_to_neg)
 
 args.n_channels = 3 if args.color else 1
 args.original_shape = (args.n_channels, ) + args.shape
@@ -610,6 +610,8 @@ with tf.Session() as session:
             xt_a_r, = session.run([xr], feed_dict={encoder_input: xt_a})
             xt_b_r, = session.run([xr], feed_dict={encoder_input: xt_b})
 
+            #xt_neg, x_neg = session.run([neg_test_next, neg_next])
+
             def make_observations(data):
                 return data
 
@@ -626,12 +628,17 @@ with tf.Session() as session:
             test_a_img = utils.plot_images(np.transpose(make_observations(xt_a_r), (0, 2, 3, 1)), n_x, n_y, "{}_test_a_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
             print('Save B test images.')
             test_b_img = utils.plot_images(np.transpose(make_observations(xt_b_r), (0, 2, 3, 1)), n_x, n_y, "{}_test_b_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
+            #print('Negative train images.')
+            #test_neg_img = utils.plot_images(np.transpose(make_observations(xt_neg), (0, 2, 3, 1)), n_x, n_y, "{}_xt_neg_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
+            #neg_img = utils.plot_images(np.transpose(make_observations(x_neg), (0, 2, 3, 1)), n_x, n_y, "{}_x_neg_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
 
             neptune.send_image('original', orig_img)
             neptune.send_image('generated', gen_img)
             neptune.send_image('reconstruction', rec_img)
             neptune.send_image('test_a', test_a_img)
             neptune.send_image('test_b', test_b_img)
+            #neptune.send_image('test_neg', test_neg_img)
+            #neptune.send_image('train_neg', neg_img)
 
             if args.fixed_gen_as_negative:
                 print('Save fixed generated images used as negative samples.')

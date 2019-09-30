@@ -9,7 +9,7 @@ import os
 K.set_image_data_format('channels_first')
 
 
-def get_dataset(args, dataset, split, batch_size, limit, augment=False, normal_class=-1, outliers=False, add_obs_noise=False):
+def get_dataset(args, dataset, split, batch_size, limit, augment=False, normal_class=-1, outliers=False, add_obs_noise=False, add_iso_noise=False):
 
     if dataset == 'emnist-letters':
         dataset = 'emnist/letters'
@@ -51,6 +51,7 @@ def get_dataset(args, dataset, split, batch_size, limit, augment=False, normal_c
         else:
             ds = ds.map(lambda x: x + tf.random.uniform(x.shape))
 
+
     image_width = ds.output_shapes[0].value
     image_height = ds.output_shapes[1].value
     image_channels = ds.output_shapes[2].value
@@ -66,6 +67,12 @@ def get_dataset(args, dataset, split, batch_size, limit, augment=False, normal_c
         ds = ds.map(lambda x: tf.image.rgb_to_grayscale(x))
 
     ds = ds.map(lambda x: x / 255.)
+
+    if add_iso_noise:
+       if split == tfds.Split.TRAIN:
+           print("Adding iso noise to train of {}.".format(dataset))
+           ds = ds.map(lambda x: x + tf.random.normal(x.shape, stddev=.25))
+           ds = ds.map(lambda x: tf.clip_by_value(x, 0, 1))
 
     if augment:
         ds = ds.map(lambda x: augment_transforms(x)) \
