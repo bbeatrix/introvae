@@ -46,7 +46,10 @@ def get_dataset(args, dataset, split, batch_size, limit, augment=False, normal_c
         .map(lambda x: tf.cast(x, tf.float32))
 
     if add_obs_noise:
-        ds = ds.map(lambda x: x + tf.random.uniform(x.shape))
+        if dataset == 'downsampled_imagenet/32x32':
+            ds = ds.map(lambda x: x + tf.random.uniform([32,32,3]))
+        else:
+            ds = ds.map(lambda x: x + tf.random.uniform(x.shape))
 
     image_width = ds.output_shapes[0].value
     image_height = ds.output_shapes[1].value
