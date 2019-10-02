@@ -18,10 +18,10 @@ lr_schedule='constant'
 obs_noise_model='gaussian'
 initial_log_gamma=0.0
 reg_lambda=1.0
-neg_prior=True
+neg_prior=False
 tags="junk,adam,baseline,bn,${obs_noise_model},${model_architecture},${test_dataset_a},${test_dataset_b}"
 d=$(date +%Y-%m-%d-%H:%M:%S)
-neg_prior_mean_coeff=25
+neg_prior_mean_coeff=0
 trained_gamma=False
 optimizer='adam'
 
