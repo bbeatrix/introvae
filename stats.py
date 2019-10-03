@@ -8,8 +8,11 @@ project = session.get_projects('csadrian')['csadrian/oneclass']
 
 def check_crit(params, crit):
   for k, v in crit.items():
-    if params[k] != v:
-      return False
+    if isinstance(v, list):
+      if params[k] not in v:
+        return False
+    elif params[k] != v:
+        return False
   return True
 
 crits = {}
@@ -18,7 +21,7 @@ crits = {}
 #crits['szepkep_kmnist'] =  {'test_dataset_a': 'fashion_mnist', 'test_dataset_b': 'mnist', 'obs_noise_model': 'bernoulli', 'neg_dataset': 'kmnist', 'neg_prior_mean_coeff': 8 }
 #crits['szepkep_noise'] =   {'test_dataset_a': 'fashion_mnist', 'test_dataset_b': 'mnist', 'obs_noise_model': 'bernoulli', 'neg_dataset': 'uniform-noise', 'neg_prior_mean_coeff': 8 }
 #crits['szepkep_adv'] =     {'test_dataset_a': 'fashion_mnist', 'test_dataset_b': 'mnist', 'obs_noise_model': 'bernoulli', 'neg_dataset': 'None', 'neg_prior_mean_coeff': 8, 'alpha_generated': 1.0 }
-crits['szepkep_isonoise'] =   {'test_dataset_a': 'fashion_mnist', 'test_dataset_b': 'mnist', 'obs_noise_model': 'bernoulli', 'neg_dataset': 'fashion_mnist', 'add_iso_noise_to_neg': 'True', 'neg_prior_mean_coeff': 8 }
+#crits['szepkep_isonoise'] =   {'test_dataset_a': 'fashion_mnist', 'test_dataset_b': 'mnist', 'obs_noise_model': 'bernoulli', 'neg_dataset': 'fashion_mnist', 'add_iso_noise_to_neg': 'True', 'neg_prior_mean_coeff': 8 }
 
 #crits['fashion_mnist_vs_mnist_baseline_bernoulli'] = {'test_dataset_a': 'fashion_mnist', 'test_dataset_b': 'mnist', 'obs_noise_model': 'bernoulli', 'neg_dataset': 'None', 'alpha_generated': 0.0 }
 #crits['fashion_mnist_vs_mnist_baseline_gaussian'] = {'test_dataset_a': 'fashion_mnist', 'test_dataset_b': 'mnist', 'obs_noise_model': 'gaussian', 'neg_dataset': 'None', 'alpha_generated': 0.0 }
@@ -32,6 +35,8 @@ crits['szepkep_isonoise'] =   {'test_dataset_a': 'fashion_mnist', 'test_dataset_
 #crits['svhn_vs_cifar10_baseline_bernoulli'] = {'test_dataset_a': 'svhn_cropped', 'test_dataset_b': 'cifar10', 'obs_noise_model': 'bernoulli', 'neg_dataset': 'None', 'alpha_generated': 0.0 }
 #crits['svhn_vs_cifar10_baseline_gaussian'] = {'test_dataset_a': 'svhn_cropped', 'test_dataset_b': 'cifar10', 'obs_noise_model': 'gaussian', 'neg_dataset': 'None', 'alpha_generated': 0.0 }
 
+crits['check_fashion_mnist_vs_mnist_basseline'] = {'test_dataset_a': 'fashion_mnist', 'test_dataset_b': 'mnist', 'seed': [6, 7, 8, 9, 10], 'neg_dataset':'None', 'alpha_generated': 1.0}
+crits['svhn_vs_cifar10_bernoulli_bn_adam'] = {'test_dataset_a': 'svhn_cropped', 'test_dataset_b': 'cifar10', 'seed': [6, 7, 8, 9, 10], 'neg_dataset':'None', 'alpha_generated': 0.0}
 
 channels = ['auc_bpd', 'auc_kl', 'auc_mean', 'test_bpd_a', 'test_bpd_b']
 exps = project.get_experiments()
