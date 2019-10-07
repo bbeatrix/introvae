@@ -598,6 +598,9 @@ with tf.Session() as session:
             b_result_dict = utils.save_output(session, '_'.join([args.prefix, args.test_dataset_b]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next_b}), OrderedDict({"test_b_mean": z_mean, "test_b_log_var": z_log_var, "test_b_reconstloss": reconst_loss}), test_size_b, args.augment_avg_at_test, args.original_shape)
             if args.neg_dataset is not None:
                 neg_result_dict = utils.save_output(session, '_'.join([args.prefix, args.neg_dataset]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: neg_test_next}), OrderedDict({"test_neg_mean": z_mean, "test_neg_log_var": z_log_var, "test_neg_reconstloss": reconst_loss}), neg_test_size, args.augment_avg_at_test, args.original_shape)
+            if args.alpha_generated > 0.0:
+                sampled_latent_tensor = tf.random_normal([args.batch_size, args.latent_dim])
+                _ = utils.save_output(session, '_'.join([args.prefix, args.dataset]), epoch, global_iters, args.batch_size, OrderedDict({sampled_latent_input: sampled_latent_tensor}), OrderedDict({"adv_gen_mean": zpp_mean, "adv_gen_log_var": zpp_log_var}), args.latent_cloud_size)
 
         if (global_iters % iterations_per_epoch == 0) and args.save_fixed_gen and ((epoch+1 <= 10) or ((epoch+1)%10 == 0)):
             z_fixed_gen = tf.random_normal([args.batch_size, args.latent_dim])
