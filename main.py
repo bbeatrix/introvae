@@ -302,9 +302,13 @@ if args.random_images_as_negative:
 
 if args.fixed_gen_as_negative:
     fixed_gen_input = Input(batch_shape=[args.batch_size] + list(args.original_shape), name='fixed_gen_input')
-    z_fg_mean, z_fg_log_var = encoder(fixed_gen_input)
-    l_reg_fixed_gen = train_reg_loss(z_fg_mean, z_fg_log_var)
-    discriminator_loss += args.alpha_fixed_gen * K.maximum(0., margin - l_reg_fixed_gen)
+    z_fg_mean, z_fg_log_var = discriminator(fixed_gen_input)
+    if args.neg_prior:
+        l_reg_fixed_gen = train_reg_loss(z_fg_mean - neg_prior_mean, z_fg_log_var)
+        discriminator_loss += args.alpha_fixed_gen * l_reg_fixed_gen
+    else:
+        l_reg_fixed_gen = train_reg_loss(z_fg_mean, z_fg_log_var)
+        discriminator_loss += args.alpha_fixed_gen * K.maximum(0., margin - l_reg_fixed_gen)
     fixed_gen_index = 0
     if args.fixed_negatives_npy is not None:
         fixed_gen_np = np.load(args.fixed_negatives_npy)
@@ -565,7 +569,7 @@ with tf.Session() as session:
             if args.fixed_gen_as_negative:
                 gamma_np, aux_loss_np, enc_loss_np, enc_l_ae_np, l_reg_z_np, l_reg_zr_ng_np, l_reg_zpp_ng_np, generator_loss_np, dec_l_ae_np, l_reg_zr_np, l_reg_zpp_np, lr_np, l_reg_zd_np, disc_loss_np, l_reg_z_fixed_gen_np = \
                     session.run([gamma, aux_loss, encoder_loss, l_ae, l_reg_z, l_reg_zr_ng, l_reg_zpp_ng, generator_loss, l_ae2, l_reg_zr, l_reg_zpp, learning_rate, l_reg_zd, discriminator_loss, l_reg_fixed_gen],
-                                feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p, fixed_gen_input: x_fg, aux_input: x_transformed[:args.batch_size], aux_y: aux_y_np[:args.batch_size]})
+                                feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p, fixed_gen_input: x_fg}) #, aux_input: x_transformed[:args.batch_size], aux_y: aux_y_np[:args.batch_size]})
                 neptune.send_metric('l_reg_fixed_gen', x=global_iters, y=l_reg_z_fixed_gen_np)
             else:
                 gamma_np, aux_loss_np, enc_loss_np, enc_l_ae_np, l_reg_z_np, l_reg_zr_ng_np, l_reg_zpp_ng_np, generator_loss_np, dec_l_ae_np, l_reg_zr_np, l_reg_zpp_np, lr_np, l_reg_zd_np, disc_loss_np = \
