@@ -26,8 +26,8 @@ d=$(date +%Y-%m-%d-%H:%M:%S)
 generator_adversarial_loss=False
 fixed_gen_as_negative=True
 alpha_fixed_gen=1.0
-fixed_gen_max_epoch=1
-fixed_gen_num=50000
+fixed_gen_max_epoch=10
+fixed_gen_num=10000
 
 
 for seed in 1 2 3 4 5
