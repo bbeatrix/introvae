@@ -41,6 +41,7 @@ parser.add_argument('--alpha_generated', dest="alpha_generated", type=float, def
 parser.add_argument('--alpha_neg', dest="alpha_neg", type=float, default=0.0, help="Alpha value for negative samples.")
 parser.add_argument('--alpha_fixed_gen', dest="alpha_fixed_gen", type=float, default=1.0, help="Weight of loss from fixed generated images as negatives")
 parser.add_argument('--beta', dest="beta", type=float, default=0.05, help="Value of model hyperparameter beta.")
+parser.add_argument('--beta_neg', dest="beta_neg", type=float, default=0.0, help="Weight of reconstruction loss of negative samples.")
 parser.add_argument('--reg_lambda', dest="reg_lambda", type=float, default=1.0, help="Weight of vae loss.")
 parser.add_argument('--use_augmented_variance_loss', dest="use_augmented_variance_loss", type=str2bool, default=False, help="If true, augmented variance loss is used instead of standard vae loss.")
 parser.add_argument('--random_images_as_negative', dest="random_images_as_negative", default=False, type=str2bool, help="Use random images as negative samples.")

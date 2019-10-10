@@ -136,7 +136,6 @@ if args.neg_dataset is not None:
 encoder_output = encoder_input
 for layer in encoder_layers:
     encoder_output = layer(encoder_output)
-
 if args.aux:
     aux_encoder_output = aux_input
     for layer in encoder_layers:
@@ -177,14 +176,21 @@ reconst_latent_input = Input(batch_shape=(args.batch_size, args.latent_dim), nam
 zr_mean, zr_log_var = discriminator(generator(reconst_latent_input))
 zr_mean_ng, zr_log_var_ng = discriminator(tf.stop_gradient(generator(reconst_latent_input)))
 xr_latent = generator(reconst_latent_input)
-if args.neg_dataset is not None:
-    zn_mean, zn_log_var = discriminator(neg_input)
 
 sampled_latent_input = Input(batch_shape=(args.batch_size, args.latent_dim), name='sampled_latent_input')
 zpp_gen = generator(sampled_latent_input)
 zpp_mean, zpp_log_var = discriminator(zpp_gen)
 #zpp_mean_ng, zpp_log_var_ng = discriminator(tf.stop_gradient(zpp_gen))
 zpp_mean_ng, zpp_log_var_ng = discriminator(tf.stop_gradient(zpp_gen))
+
+if args.neg_dataset is not None:
+    neg_encoder_output = neg_input
+    for layer in encoder_layers:
+        neg_encoder_output = layer(neg_encoder_output)
+    zn, zn_mean, zn_log_var = model.add_sampling(neg_encoder_output, args.sampling, args.sampling_std, args.batch_size, args.latent_dim, args.encoder_wd)
+    xnr = generator(zn)
+    neg_latent_input = Input(batch_shape=(args.batch_size, args.latent_dim), name='neg_latent_input')
+    xnr_latent = generator(neg_latent_input)
 
 global_step = tf.Variable(0, trainable=False)
 
@@ -261,6 +267,10 @@ reconst_loss = reconstruction_loss(encoder_input, xr)
 l_ae = tf.reduce_mean(reconstruction_loss(encoder_input, xr))
 l_ae2 = tf.reduce_mean(reconstruction_loss(encoder_input, xr_latent))
 
+if args.neg_dataset is not None:
+    l_ae_neg = tf.reduce_mean(reconstruction_loss(neg_input, xnr))
+    l_ae_neg2 = tf.reduce_mean(reconstruction_loss(neg_input, xnr_latent))
+
 zpp_gradients = tf.gradients(l_reg_zpp, [zpp_gen])[0]
 
 assert args.gradreg == 0.0, "Not implemented"
@@ -291,9 +301,9 @@ else:
 if args.neg_dataset is not None:
     if args.neg_prior:
         l_reg_neg = train_reg_loss(zn_mean - neg_prior_mean, zn_log_var)
-        discriminator_loss += args.alpha_neg * l_reg_neg
+        discriminator_loss += args.alpha_neg * l_reg_neg + args.beta_neg * l_ae_neg
     else:
-        discriminator_loss +=  args.alpha_neg * K.maximum(0., margin - l_reg_neg)
+        discriminator_loss +=  args.alpha_neg * K.maximum(0., margin - l_reg_neg) + args.beta_neg * l_ae_neg
 
 if args.random_images_as_negative:
     zn_mean, zn_log_var = encoder(tf.clip_by_value(tf.abs(tf.random_normal( [args.batch_size] + list(args.original_shape) )), 0.0, 1.0))
@@ -333,6 +343,9 @@ if args.generator_adversarial_loss:
 else:
     generator_l_adv = 0.0
     generator_loss = args.beta * l_ae2 # + args.gradreg * spectreg_loss
+
+if args.neg_dataset is not None:
+    generator_loss += args.beta_neg * l_ae_neg2
 
 
 if args.aux:
@@ -518,7 +531,9 @@ with tf.Session() as session:
             train_feed_dict[aux_y] = aux_y_np[:args.batch_size]
         if args.neg_dataset is not None:
             x_n, = session.run([neg_next])
+            z_n = session.run(zn, feed_dict={neg_input: x_n})
             train_feed_dict[neg_input] = x_n
+            train_feed_dict[neg_latent_input] = z_n
         if args.fixed_gen_as_negative:
             if fixed_gen_index + args.batch_size > args.fixed_gen_num:
                 fixed_gen_index = 0
