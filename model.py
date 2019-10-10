@@ -333,8 +333,8 @@ def residual_block(model_type, kernels, filters, block, bn_allowed, stage='a', l
     return identity_block
 
 
-def add_sampling(hidden, sampling, sampling_std, batch_size, latent_dim, wd):
-    z_mean = Dense(latent_dim, kernel_regularizer=l2(wd))(hidden)
+def add_sampling(hidden, sampling, sampling_std, batch_size, latent_dim, wd, z_mean_layer, z_log_var_layer):
+    z_mean = z_mean_layer(hidden)
     if not sampling:
         z_log_var = Lambda(lambda x: 0*x, output_shape=[latent_dim])(z_mean)
         return z_mean, z_mean, z_log_var
@@ -342,7 +342,7 @@ def add_sampling(hidden, sampling, sampling_std, batch_size, latent_dim, wd):
         if sampling_std > 0:
             z_log_var = Lambda(lambda x: 0*x + K.log(K.square(sampling_std)), output_shape=[latent_dim])(z_mean)
         else:
-            z_log_var = Dense(latent_dim, kernel_regularizer=l2(wd))(hidden)
+            z_log_var = z_log_var_layer(hidden)
 
         def sampling(inputs):
             z_mean, z_log_var = inputs

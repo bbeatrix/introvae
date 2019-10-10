@@ -5,6 +5,7 @@ import keras, keras.backend as K
 
 from keras.layers import Activation, Input, Dense, Flatten
 from keras.models import Model
+from keras.regularizers import l2
 
 import os, sys, time
 from collections import OrderedDict
@@ -147,7 +148,9 @@ for layer in generator_layers:
     generator_output = layer(generator_output)
 
 generator_output = model.add_observable_output(generator_output, args)
-z, z_mean, z_log_var = model.add_sampling(encoder_output, args.sampling, args.sampling_std, args.batch_size, args.latent_dim, args.encoder_wd)
+z_mean_layer = Dense(args.latent_dim, kernel_regularizer=l2(args.encoder_wd))
+z_log_var_layer = Dense(args.latent_dim, kernel_regularizer=l2(args.encoder_wd))
+z, z_mean, z_log_var = model.add_sampling(encoder_output, args.sampling, args.sampling_std, args.batch_size, args.latent_dim, args.encoder_wd, z_mean_layer, z_log_var_layer)
 
 if args.trained_gamma:
     log_gamma = tf.get_variable('log_gamma', [], tf.float32, tf.constant_initializer(value=args.initial_log_gamma))
@@ -187,7 +190,7 @@ if args.neg_dataset is not None:
     neg_encoder_output = neg_input
     for layer in encoder_layers:
         neg_encoder_output = layer(neg_encoder_output)
-    zn, zn_mean, zn_log_var = model.add_sampling(neg_encoder_output, args.sampling, args.sampling_std, args.batch_size, args.latent_dim, args.encoder_wd)
+    zn, zn_mean, zn_log_var = model.add_sampling(neg_encoder_output, args.sampling, args.sampling_std, args.batch_size, args.latent_dim, args.encoder_wd, z_mean_layer, z_log_var_layer)
     xnr = generator(zn)
     neg_latent_input = Input(batch_shape=(args.batch_size, args.latent_dim), name='neg_latent_input')
     xnr_latent = generator(neg_latent_input)
