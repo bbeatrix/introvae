@@ -79,6 +79,7 @@ parser.add_argument('--trained_gamma', dest="trained_gamma", type=str2bool, defa
 parser.add_argument('--initial_log_gamma', dest="initial_log_gamma", type=float, default=0.0, help="Initial values of log gamma.")
 
 # encoder
+parser.add_argument('--encoder_use_sn', dest="encoder_use_sn", type=str2bool, default=False, help="Use spectral normalization in encoder.")
 parser.add_argument('--encoder_use_bn', dest="encoder_use_bn", type=str2bool, default=False, help="Use batch normalization in encoder.")
 parser.add_argument('--encoder_wd', dest="encoder_wd", type=float, default=0.0, help="Weight decay param for the encoder.")
 

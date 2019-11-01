@@ -6,6 +6,7 @@ from keras.models import Model
 from keras.regularizers import l2
 from keras.initializers import RandomNormal
 import numpy as np
+from SpectralNormalizationKeras import ConvSN2D
 
 def encoder_layers_baseline_mnist(image_size, image_channels, base_channels, bn_allowed, wd, seed):
     """
@@ -67,7 +68,7 @@ def add_observable_output(generator_output, args):
     return generator_output
 
 
-def encoder_layers_dcgan_univ(image_size, image_channels, base_channels, bn_allowed, wd):
+def encoder_layers_dcgan_univ(image_size, image_channels, base_channels, bn_allowed, wd, encoder_use_sn):
 
     n_upsample = 0
     n = image_size[0]
@@ -102,7 +103,10 @@ def encoder_layers_dcgan_univ(image_size, image_channels, base_channels, bn_allo
             upsamples += 1
             activation = "relu"
             use_bn = bn_allowed
-        layers.append(Conv2D(channels, (kernel, kernel), strides=(stride, stride), padding=border_mode, use_bias=False, kernel_regularizer=l2(wd)))
+        if encoder_use_sn:
+            layers.append(ConvSN2D(channels, (kernel, kernel), strides=(stride, stride), padding=border_mode, use_bias=False, kernel_regularizer=l2(wd)))
+        else:
+            layers.append(Conv2D(channels, (kernel, kernel), strides=(stride, stride), padding=border_mode, use_bias=False, kernel_regularizer=l2(wd)))
 
         if use_bn:
             layers.append(BatchNormalization(axis=1))
