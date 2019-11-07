@@ -523,9 +523,6 @@ with tf.Session() as session:
         z_p = np.random.normal(loc=0.0, scale=1.0, size=(args.batch_size, args.latent_dim))
         z_x, x_r, x_p = session.run([z, xr, generator_output], feed_dict={encoder_input: x, generator_input: z_p})
 
-        z_p2 = np.random.normal(loc=12.5, scale=1.0, size=(args.batch_size, args.latent_dim))
-        x_p2 = session.run([generator_output], feed_dict={generator_input: z_p2})[0]
-
         if args.aux:
             transformations_inds = np.tile(np.arange(transformer.n_transforms), len(x[0:4]))
             aux_y_np = to_categorical(transformations_inds)
@@ -660,10 +657,6 @@ with tf.Session() as session:
             #test_neg_img = utils.plot_images(np.transpose(make_observations(xt_neg), (0, 2, 3, 1)), n_x, n_y, "{}_xt_neg_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
             #neg_img = utils.plot_images(np.transpose(make_observations(x_neg), (0, 2, 3, 1)), n_x, n_y, "{}_x_neg_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
 
-            print('Save generated images from N(12.5, 1).')
-            gen_img2 = utils.plot_images(np.transpose(make_observations(x_p2), (0, 2, 3, 1)), n_x, n_y, "{}_sampled2_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
-
-            neptune.send_image('generated2', gen_img2)
             neptune.send_image('original', orig_img)
             neptune.send_image('generated', gen_img)
             neptune.send_image('reconstruction', rec_img)
