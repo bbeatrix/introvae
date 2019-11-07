@@ -27,7 +27,7 @@ optimizer='adam'
 beta_neg=0.0
 encoder_use_sn=True
 
-for seed in 1 2 3 4 5
+for seed in 2 3 4 5
 do
     name_prefix="${d}_FINAL_nbepoch500_neg_adv_gen_bernoulli_1_encoder_sn"
     name="${name_prefix}_${initial_log_gamma}_${test_dataset_a}_vs_${test_dataset_b}_${model_architecture}_alpha_gen=${alpha_generated}_alpha_neg=${alpha_neg}_neg_dataset=${neg_dataset}_nc=${normal_class}_seed=${seed}"
