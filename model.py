@@ -8,7 +8,7 @@ from keras.initializers import RandomNormal
 import numpy as np
 from SpectralNormalizationKeras import ConvSN2D
 
-def encoder_layers_baseline_mnist(image_size, image_channels, base_channels, bn_allowed, wd, seed):
+def encoder_layers_baseline_mnist(image_size, image_channels, base_channels, bn_allowed, wd, seed, encoder_use_sn):
     """
     Following Nalisnick et al. (arxiv: 1810.09136), for MNIST, we use the encoder architecture
     described in Rosca et al. (arxiv: 1802.06847) in appendix K table 4.
@@ -17,21 +17,36 @@ def encoder_layers_baseline_mnist(image_size, image_channels, base_channels, bn_
     layers = []
 
     initializer = RandomNormal(mean=0.0, stddev=np.sqrt(0.02), seed=seed)
+    if encoder_use_sn:
+        layers.append(ConvSN2D(8 , (5, 5), strides=(2, 2), padding='same', kernel_initializer=initializer, bias_initializer=initializer, kernel_regularizer=l2(wd)))
+        layers.append(Activation('relu')) 
 
-    layers.append(Conv2D(8 , (5, 5), strides=(2, 2), padding='same', kernel_initializer=initializer, bias_initializer=initializer, kernel_regularizer=l2(wd)))
-    layers.append(Activation('relu')) 
+        layers.append(ConvSN2D(16, (5, 5), strides=(1, 1), padding='same', kernel_initializer=initializer, bias_initializer=initializer, kernel_regularizer=l2(wd)))
+        layers.append(Activation('relu'))
 
-    layers.append(Conv2D(16, (5, 5), strides=(1, 1), padding='same', kernel_initializer=initializer, bias_initializer=initializer, kernel_regularizer=l2(wd)))
-    layers.append(Activation('relu'))
+        layers.append(ConvSN2D(32, (5, 5), strides=(2, 2), padding='same', kernel_initializer=initializer, bias_initializer=initializer, kernel_regularizer=l2(wd)))
+        layers.append(Activation('relu'))
 
-    layers.append(Conv2D(32, (5, 5), strides=(2, 2), padding='same', kernel_initializer=initializer, bias_initializer=initializer, kernel_regularizer=l2(wd)))
-    layers.append(Activation('relu'))
+        layers.append(ConvSN2D(64, (5, 5), strides=(1, 1), padding='same', kernel_initializer=initializer, bias_initializer=initializer, kernel_regularizer=l2(wd)))
+        layers.append(Activation('relu'))
 
-    layers.append(Conv2D(64, (5, 5), strides=(1, 1), padding='same', kernel_initializer=initializer, bias_initializer=initializer, kernel_regularizer=l2(wd)))
-    layers.append(Activation('relu'))
+        layers.append(ConvSN2D(64, (5, 5), strides=(2, 2), padding='same', kernel_initializer=initializer, bias_initializer=initializer, kernel_regularizer=l2(wd)))
+        layers.append(Activation('relu'))
+    else:
+        layers.append(Conv2D(8 , (5, 5), strides=(2, 2), padding='same', kernel_initializer=initializer, bias_initializer=initializer, kernel_regularizer=l2(wd)))
+        layers.append(Activation('relu')) 
 
-    layers.append(Conv2D(64, (5, 5), strides=(2, 2), padding='same', kernel_initializer=initializer, bias_initializer=initializer, kernel_regularizer=l2(wd)))
-    layers.append(Activation('relu'))
+        layers.append(Conv2D(16, (5, 5), strides=(1, 1), padding='same', kernel_initializer=initializer, bias_initializer=initializer, kernel_regularizer=l2(wd)))
+        layers.append(Activation('relu'))
+
+        layers.append(Conv2D(32, (5, 5), strides=(2, 2), padding='same', kernel_initializer=initializer, bias_initializer=initializer, kernel_regularizer=l2(wd)))
+        layers.append(Activation('relu'))
+
+        layers.append(Conv2D(64, (5, 5), strides=(1, 1), padding='same', kernel_initializer=initializer, bias_initializer=initializer, kernel_regularizer=l2(wd)))
+        layers.append(Activation('relu'))
+
+        layers.append(Conv2D(64, (5, 5), strides=(2, 2), padding='same', kernel_initializer=initializer, bias_initializer=initializer, kernel_regularizer=l2(wd)))
+        layers.append(Activation('relu'))
 
     layers.append(Flatten())
     return layers

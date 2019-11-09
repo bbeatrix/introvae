@@ -25,6 +25,7 @@ d=$(date +%Y-%m-%d-%H:%M:%S)
 generator_adversarial_loss=False
 beta_neg=0.0
 encoder_use_sn=True
+latent_dim=10
 
 for seed in 1 2 3 4 5
 do

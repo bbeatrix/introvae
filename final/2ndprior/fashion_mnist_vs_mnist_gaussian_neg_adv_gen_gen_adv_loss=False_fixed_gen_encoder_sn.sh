@@ -25,7 +25,7 @@ d=$(date +%Y-%m-%d-%H:%M:%S)
 generator_adversarial_loss=False
 beta_neg=0.0
 encoder_use_sn=True
-
+latent_dim=10
 fixed_gen_as_negative=True
 alpha_fixed_gen=1.0
 fixed_gen_max_epoch=10
