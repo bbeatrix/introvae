@@ -33,6 +33,7 @@ parser.add_argument('--neg_test_size', dest="neg_test_size", type=int, default=1
 
 
 # model hyperparameters
+parser.add_argument('--mml', dest="mml", type=str2bool, default=False, help="If True, the likelihood of negatives is minimized, likelihood of normals is maximized")
 parser.add_argument('--margin_inf', dest="margin_inf", type=str2bool, default=False, help="If True, the margin is increasing intead of being fixed value")
 parser.add_argument('--m', dest="m", type=int, default=120, help="Value of model hyperparameter m.")
 parser.add_argument('--alpha', dest="alpha", type=float, default=None, help="Value of model hyperparameter alpha.")
@@ -65,7 +66,7 @@ parser.add_argument('--verbose', dest="verbose", type=int, default=2, help="Logg
 parser.add_argument('--aux', dest="aux", type=str2bool, default=False, help="Use auxiliary training objective of predicting geometric transformations.")
 parser.add_argument('--optimizer', dest="optimizer", type=str, default='rmsprop', help="Optimizer.")
 parser.add_argument('--joint_training', dest="joint_training", type=str2bool, default=False, help="To train the encoder and decoder jointly or separately.")
-
+parser.add_argument('--gradient_clipping', dest="gradient_clipping", type=str2bool, default=False, help="If True, use gradient clipping.")
 
 # architecture
 parser.add_argument('--sampling', dest="sampling", type=str2bool, default=True, help="Use sampling.")

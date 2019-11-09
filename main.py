@@ -294,17 +294,24 @@ if args.neg_prior:
     neg_prior_mean = args.neg_prior_mean_coeff * tf.concat((tf.zeros(shape=(args.batch_size, args.priors_means_same_coords)),
                                                             tf.ones(shape=(args.batch_size, args.latent_dim - args.priors_means_same_coords))),
                                                             axis=1)
-    l_reg_zr_ng = train_reg_loss(zr_mean_ng - neg_prior_mean, zr_log_var)
-    l_reg_zpp_ng = train_reg_loss(zpp_mean_ng - neg_prior_mean, zpp_log_var_ng)
-    discriminator_loss = args.reg_lambda * l_reg_zd + args.alpha_reconstructed * l_reg_zr_ng + args.alpha_generated * l_reg_zpp_ng
+    if args.mml:
+        discriminator_loss = args.reg_lambda * l_reg_zd
+    else:
+        l_reg_zr_ng = train_reg_loss(zr_mean_ng - neg_prior_mean, zr_log_var)
+        l_reg_zpp_ng = train_reg_loss(zpp_mean_ng - neg_prior_mean, zpp_log_var_ng)
+        discriminator_loss = args.reg_lambda * l_reg_zd + args.alpha_reconstructed * l_reg_zr_ng + args.alpha_generated * l_reg_zpp_ng
 else:
     discriminator_loss = args.reg_lambda * l_reg_zd + args.alpha_reconstructed * K.maximum(0., margin - l_reg_zr_ng) + args.alpha_generated * K.maximum(0., margin - l_reg_zpp_ng)
 #discriminator_loss = args.reg_lambda * l_reg_zd + args.alpha_reconstructed * (1.0 / l_reg_zr_ng) + args.alpha_generated * (1.0 / l_reg_zpp_ng)
 
 if args.neg_dataset is not None:
     if args.neg_prior:
-        l_reg_neg = train_reg_loss(zn_mean - neg_prior_mean, zn_log_var)
-        discriminator_loss += args.alpha_neg * l_reg_neg + args.beta_neg * l_ae_neg
+        if args.mml:
+            l_reg_neg = train_reg_loss(zn_mean - neg_prior_mean, zn_log_var)
+            discriminator_loss += args.alpha_neg * l_reg_neg - args.beta_neg * l_ae_neg
+        else:
+            l_reg_neg = train_reg_loss(zn_mean - neg_prior_mean, zn_log_var)
+            discriminator_loss += args.alpha_neg * l_reg_neg + args.beta_neg * l_ae_neg
     else:
         discriminator_loss +=  args.alpha_neg * K.maximum(0., margin - l_reg_neg) + args.beta_neg * l_ae_neg
 
@@ -348,8 +355,10 @@ else:
     generator_loss = args.beta * l_ae2 # + args.gradreg * spectreg_loss
 
 if args.neg_dataset is not None:
-    generator_loss += args.beta_neg * l_ae_neg2
-
+    if args.mml:
+        generator_loss += -args.beta_neg * l_ae_neg2 # + l_reg_zd + l_reg_neg
+    else:
+        generator_loss += args.beta_neg * l_ae_neg2
 
 if args.aux:
     aux_y = Input(batch_shape=(args.batch_size, transformer.n_transforms), name='aux_y')
@@ -387,6 +396,10 @@ if args.separate_discriminator:
         tf.summary.histogram(v.name, v)
 
 encoder_grads = optimizer.compute_gradients(encoder_loss, var_list=encoder_params)
+if args.gradient_clipping:
+    enc_gradients, enc_variables = zip(*encoder_grads)
+    enc_gradients = [None if gradient is None else tf.clip_by_norm(gradient, 5.0) for gradient in enc_gradients]
+    encoder_grads = zip(enc_gradients, enc_variables)
 encoder_apply_grads_op = optimizer.apply_gradients(encoder_grads)
 
 
@@ -398,6 +411,10 @@ encoder_apply_grads_op = optimizer.apply_gradients(encoder_grads)
 
 
 generator_grads = optimizer.compute_gradients(generator_loss, var_list=generator_params)
+if args.gradient_clipping:
+    gen_gradients, gen_variables = zip(*generator_grads)
+    gen_gradients = [None if gradient is None else tf.clip_by_norm(gradient, 5.0) for gradient in gen_gradients]
+    generator_grads = zip(gen_gradients, gen_variables)
 generator_apply_grads_op = optimizer.apply_gradients(generator_grads, global_step=global_step)
 
 if args.aux:
