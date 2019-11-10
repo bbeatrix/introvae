@@ -24,7 +24,7 @@ neg_prior_mean_coeff=0.0
 beta_neg=-1.0 #here mml=False, mml=True multiplies beta_neg with -1, this is the AE part
 alpha_neg=1.0 #this should be positive as margin already "multiplies" alpha_neg with -1
 
-name_prefix='FIN_2NDP_bernoulli_1_neg_letters_negelbo'
+name_prefix='FIN_2NDP_bernoulli_1_neg_letters_negelbomargo'
 for seed in 1 2 3 4 5
 do
    name="${name_prefix}_${initial_log_gamma}_${test_dataset_a}_vs_${test_dataset_b}_alpha_rec=${alpha_reconstructed}_alpha_gen=${alpha_generated}_alpha_neg=${alpha_neg}_neg_ds=${neg_dataset}_beta=${beta}_seed=${seed}"
