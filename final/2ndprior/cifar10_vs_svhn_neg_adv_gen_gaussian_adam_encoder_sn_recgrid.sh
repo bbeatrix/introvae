@@ -28,6 +28,7 @@ beta_neg=0.0
 encoder_use_sn=True
 
 for beta in 100000.0 10000.0 1000.0 100.0 10.0
+do
 for seed in 2
 do
     name_prefix="${d}_FINAL_nbepoch500_neg_adv_gen_gaussian_1_encoder_sn_recgrid"
