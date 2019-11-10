@@ -53,7 +53,7 @@ parser.add_argument('--fixed_gen_num', dest="fixed_gen_num", type=int, default=1
 parser.add_argument('--fixed_negatives_npy', dest="fixed_negatives_npy", type=str, default=None, help="Use images from npy file as fixed negative samples.")
 parser.add_argument('--augment_avg_at_test', dest="augment_avg_at_test", type=str2bool, default=False, help="If True, likelihood is averaged over batch size number of images at test time.")
 parser.add_argument('--neg_prior', dest="neg_prior", type=str2bool, default=False, help="Use different prior for negative samples if True.")
-parser.add_argument('--neg_prior_mean_coeff', dest="neg_prior_mean_coeff", type=int, default=10, help="Coeff of mean if the negative prior is shifted Gaussian.")
+parser.add_argument('--neg_prior_mean_coeff', dest="neg_prior_mean_coeff", type=float, default=10, help="Coeff of mean if the negative prior is shifted Gaussian.")
 parser.add_argument('--mmd_lambda', dest="mmd_lambda", type=float, default=0.0, help="Weight of MMD loss term in encoder loss.")
 parser.add_argument('--priors_means_same_coords', dest="priors_means_same_coords", type=int, default=0, help="Number of same coordinates of means of the two priors.")
 
