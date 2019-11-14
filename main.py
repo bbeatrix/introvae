@@ -670,9 +670,6 @@ with tf.Session() as session:
             test_a_img = utils.plot_images(np.transpose(make_observations(xt_a_r), (0, 2, 3, 1)), n_x, n_y, "{}_test_a_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
             print('Save B test images.')
             test_b_img = utils.plot_images(np.transpose(make_observations(xt_b_r), (0, 2, 3, 1)), n_x, n_y, "{}_test_b_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
-            #print('Negative train images.')
-            #test_neg_img = utils.plot_images(np.transpose(make_observations(xt_neg), (0, 2, 3, 1)), n_x, n_y, "{}_xt_neg_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
-            #neg_img = utils.plot_images(np.transpose(make_observations(x_neg), (0, 2, 3, 1)), n_x, n_y, "{}_x_neg_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
 
             neptune.send_image('original', orig_img)
             neptune.send_image('generated', gen_img)
@@ -680,7 +677,10 @@ with tf.Session() as session:
             neptune.send_image('test_a', test_a_img)
             neptune.send_image('test_b', test_b_img)
             #neptune.send_image('test_neg', test_neg_img)
-            #neptune.send_image('train_neg', neg_img)
+            if args.neg_dataset:
+                print('Save negative images.')
+                neg_img = utils.plot_images(np.transpose(make_observations(x_n), (0, 2, 3, 1)), n_x, n_y, "{}_negative_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
+                neptune.send_image('train_neg', neg_img)
 
             if args.fixed_gen_as_negative:
                 print('Save fixed generated images used as negative samples.')
