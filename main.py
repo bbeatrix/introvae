@@ -21,13 +21,13 @@ import datetime
 now = datetime.datetime.now()
 
 import neptune
-#neptune.init(backend=neptune.OfflineBackend())
 
 args = params.getArgs()
 print(args)
 
 args.prefix = args.prefix + now.strftime("%Y%m%d_%H%M%S%f")
 
+#neptune.init(project_qualified_name="csadrian/oneclass", backend=neptune.OfflineBackend())
 neptune.init(project_qualified_name="csadrian/oneclass")
 neptune.create_experiment(params=vars(args), name=args.name)
 for tag in args.tags.split(','):
@@ -632,7 +632,7 @@ with tf.Session() as session:
 
         if ((global_iters % iterations_per_epoch == 0) and args.save_latent):
             _ = session.run([test_iterator_init_op_a, test_iterator_init_op_b])
-            _ = utils.save_output(session, '_'.join([args.prefix, args.dataset]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: fixed_next}), OrderedDict({"train_mean": z_mean, "train_log_var": z_log_var}), args.latent_cloud_size)
+            _ = utils.save_output(session, '_'.join([args.prefix, args.dataset]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: fixed_next}), OrderedDict({"train_mean": z_mean, "train_log_var": z_log_var, "train_reconstloss": reconst_loss}), args.latent_cloud_size)
             a_result_dict = utils.save_output(session, '_'.join([args.prefix, args.test_dataset_a]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next_a}), OrderedDict({"test_a_mean": z_mean, "test_a_log_var": z_log_var, "test_a_reconstloss": reconst_loss}), test_size_a, args.augment_avg_at_test, args.original_shape)
             b_result_dict = utils.save_output(session, '_'.join([args.prefix, args.test_dataset_b]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next_b}), OrderedDict({"test_b_mean": z_mean, "test_b_log_var": z_log_var, "test_b_reconstloss": reconst_loss}), test_size_b, args.augment_avg_at_test, args.original_shape)
             if args.neg_dataset is not None:
