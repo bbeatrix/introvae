@@ -63,7 +63,6 @@ parser.add_argument('--lr', dest="lr", default="0.001", type=float, help="Learni
 parser.add_argument('--batch_size', dest="batch_size", default=200, type=int, help="Batch size.")
 parser.add_argument('--nb_epoch', dest="nb_epoch", type=int, default=200, help="Number of epochs.")
 parser.add_argument('--verbose', dest="verbose", type=int, default=2, help="Logging verbosity: 0-silent, 1-verbose, 2-perEpoch (default).")
-parser.add_argument('--aux', dest="aux", type=str2bool, default=False, help="Use auxiliary training objective of predicting geometric transformations.")
 parser.add_argument('--optimizer', dest="optimizer", type=str, default='rmsprop', help="Optimizer.")
 parser.add_argument('--joint_training', dest="joint_training", type=str2bool, default=False, help="To train the encoder and decoder jointly or separately.")
 parser.add_argument('--gradient_clipping', dest="gradient_clipping", type=str2bool, default=False, help="If True, use gradient clipping.")

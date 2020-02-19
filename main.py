@@ -1,37 +1,26 @@
 import numpy as np
 import tensorflow as tf
 import tensorflow_datasets as tfds
-import keras, keras.backend as K
 
+import keras, keras.backend as K
 from keras.layers import Activation, Input, Dense, Flatten
 from keras.models import Model
 from keras.regularizers import l2
+from keras.utils import to_categorical
+from keras.backend.tensorflow_backend import set_session
 
-import os, sys, time
+import os, sys, time, datetime
 from collections import OrderedDict
 
 import model, params, losses, utils, data
 
 from sklearn.metrics import roc_auc_score
 
-from keras.utils import to_categorical
-from transformations import Transformer
-import datetime
 
 now = datetime.datetime.now()
-
-import neptune
-
 args = params.getArgs()
-print(args)
-
 args.prefix = args.prefix + now.strftime("%Y%m%d_%H%M%S%f")
-
-#neptune.init(project_qualified_name="csadrian/oneclass", backend=neptune.OfflineBackend())
-neptune.init(project_qualified_name="csadrian/oneclass")
-neptune.create_experiment(params=vars(args), name=args.name)
-for tag in args.tags.split(','):
-               neptune.append_tag(tag)
+print(args)
 
 #
 # Config
@@ -43,9 +32,7 @@ tf.set_random_seed(args.seed)
 
 print('Keras version: ', keras.__version__)
 print('Tensorflow version: ', tf.__version__)
-from keras.backend.tensorflow_backend import set_session
 config = tf.ConfigProto()
-# config.gpu_options.per_process_gpu_memory_fraction = args.memory_share
 config.gpu_options.allow_growth = True
 set_session(tf.Session(config=config))
 
@@ -74,19 +61,6 @@ print("train_size: ", train_size)
 print("test_size_a: ", test_size_a)
 print("test_size_b: ", test_size_b)
 
-#if args.dataset == 'cifar10':
-#    ds = data.create_cifar10_unsup_dataset(args.batch_size, args.train_size, args.test_size, args.latent_cloud_size, args.normal_class, args.gcnorm, args.augment)
-#    train_data, train_placeholder, train_dataset, train_iterator, train_iterator_init_op, train_next = ds[0]
-#    test_data, test_placeholder, test_dataset, test_iterator, test_iterator_init_op, test_next = ds[1]
-#    fixed_data, fixed_placeholder, fixed_dataset, fixed_iterator, fixed_iterator_init_op, fixed_next = ds[2]
-#else:
-#    train_dataset, train_iterator, train_iterator_init_op, train_next \
-#         = data.create_dataset(os.path.join(data_path, "train/*.npy"), args.batch_size, args.train_size)
-#    test_dataset, test_iterator, test_iterator_init_op, test_next \
-#         = data.create_dataset(os.path.join(data_path, "test/*.npy"), args.batch_size, args.test_size)
-#    fixed_dataset, fixed_iterator, fixed_iterator_init_op, fixed_next \
-#         = data.create_dataset(os.path.join(data_path, "train/*.npy"), args.batch_size, args.latent_cloud_size)
-
 train_data, train_iterator, train_iterator_init_op, train_next = data.get_dataset(args, args.dataset, tfds.Split.TRAIN, args.batch_size, train_size, args.augment, args.normal_class, add_obs_noise=args.add_obs_noise)
 fixed_data, fixed_iterator, fixed_iterator_init_op, fixed_next = data.get_dataset(args, args.dataset, tfds.Split.TRAIN, args.batch_size, args.latent_cloud_size, args.augment, args.normal_class, add_obs_noise=args.add_obs_noise)
 test_data_a, test_iterator_a, test_iterator_init_op_a, test_next_a = data.get_dataset(args, args.test_dataset_a, tfds.Split.TEST, args.batch_size, test_size_a, args.augment, args.normal_class, outliers=False, add_obs_noise=args.add_obs_noise)
@@ -101,47 +75,26 @@ if args.neg_dataset is not None:
 args.n_channels = 3 if args.color else 1
 args.original_shape = (args.n_channels, ) + args.shape
 
-transformer = Transformer()
 
 #
 # Build networks
 #
 
-if args.model_architecture == 'deepsvdd':
-    encoder_layers = model.encoder_layers_deepsvdd(args.shape, args.base_filter_num, args.encoder_use_bn)
-    generator_layers = model.generator_layers_deepsvdd(args.shape, args.base_filter_num, args.generator_use_bn)
-
-elif args.model_architecture == 'baseline_mnist':
+if args.model_architecture == 'baseline_mnist':
     encoder_layers = model.encoder_layers_baseline_mnist(args.shape, args.n_channels, args.base_filter_num, args.encoder_use_bn, args.encoder_wd, args.seed, args.encoder_use_sn)
     generator_layers = model.generator_layers_baseline_mnist(args.shape, args.n_channels, args.base_filter_num, args.encoder_use_bn, args.generator_wd, args.seed)
-
-elif args.model_architecture == 'dcgan':
-    encoder_layers = model.encoder_layers_dcgan(args.shape, args.base_filter_num, args.encoder_use_bn, args.encoder_wd)
-    generator_layers = model.generator_layers_dcgan(args.shape, args.base_filter_num, args.encoder_use_bn, args.generator_wd)
 elif args.model_architecture == 'dcgan_univ':
     encoder_layers = model.encoder_layers_dcgan_univ(args.shape, args.n_channels, args.base_filter_num, args.encoder_use_bn, args.encoder_wd, args.encoder_use_sn)
     generator_layers = model.generator_layers_dcgan_univ(args.shape, args.n_channels, args.base_filter_num, args.encoder_use_bn, args.generator_wd)
-else:
-    encoder_layers = model.encoder_layers_introvae(args.shape, args.base_filter_num, args.encoder_use_bn)
-    generator_layers = model.generator_layers_introvae(args.shape, args.base_filter_num, args.generator_use_bn)
-
 
 encoder_input = Input(batch_shape=[args.batch_size] + list(args.original_shape), name='encoder_input')
-
 generator_input = Input(batch_shape=(args.batch_size, args.latent_dim), name='generator_input')
-if args.aux:
-    aux_input = Input(batch_shape=[args.batch_size] + list(args.original_shape), name='aux_input')
 if args.neg_dataset is not None:
     neg_input = Input(batch_shape=[args.batch_size] + list(args.original_shape), name='neg_input')
 
 encoder_output = encoder_input
 for layer in encoder_layers:
     encoder_output = layer(encoder_output)
-if args.aux:
-    aux_encoder_output = aux_input
-    for layer in encoder_layers:
-        aux_encoder_output = layer(aux_encoder_output)
-
 
 generator_output = generator_input
 for layer in generator_layers:
@@ -160,8 +113,6 @@ gamma = tf.exp(log_gamma)
 
 encoder = Model(inputs=encoder_input, outputs=[z_mean, z_log_var])
 generator = Model(inputs=generator_input, outputs=generator_output)
-if args.aux:
-    aux_encoder = Model(inputs=aux_input, outputs=[aux_encoder_output])
 
 
 if args.separate_discriminator:
@@ -183,7 +134,6 @@ xr_latent = generator(reconst_latent_input)
 sampled_latent_input = Input(batch_shape=(args.batch_size, args.latent_dim), name='sampled_latent_input')
 zpp_gen = generator(sampled_latent_input)
 zpp_mean, zpp_log_var = discriminator(zpp_gen)
-#zpp_mean_ng, zpp_log_var_ng = discriminator(tf.stop_gradient(zpp_gen))
 zpp_mean_ng, zpp_log_var_ng = discriminator(tf.stop_gradient(zpp_gen))
 
 if args.neg_dataset is not None:
@@ -213,15 +163,11 @@ if args.optimizer == 'rmsprop':
     encoder_optimizer = tf.train.RMSPropOptimizer(learning_rate=learning_rate)
     generator_optimizer = tf.train.RMSPropOptimizer(learning_rate=learning_rate)
     joint_optimizer = tf.train.RMSPropOptimizer(learning_rate=learning_rate)
-    if args.aux:
-        aux_optimizer = tf.train.RMSPropOptimizer(learning_rate=learning_rate)
 else:
     optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
     encoder_optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
     generator_optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
     joint_optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
-    if args.aux:
-        aux_optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
 
 
 if args.separate_discriminator:
@@ -264,8 +210,6 @@ def reconstruction_loss(x, xr):
         return tf.reduce_sum(tf.square((x - xr) / gamma) / 2 + log_gamma + HALF_LOG_TWO_PI, [1, 2, 3])
 
 reconst_loss = reconstruction_loss(encoder_input, xr)
-
-#reconst_loss = K.mean(keras.objectives.mean_squared_error(encoder_input, xr), axis=(1,2))
 
 l_ae = tf.reduce_mean(reconstruction_loss(encoder_input, xr))
 l_ae2 = tf.reduce_mean(reconstruction_loss(encoder_input, xr_latent))
@@ -341,18 +285,15 @@ if args.separate_discriminator:
 else:
     encoder_l_adv = discriminator_loss
 
-encoder_loss = encoder_l_adv + args.beta * l_ae #+ args.gradreg * spectreg_loss
-#encoder1_loss = args.reg_lambda * l_reg_zd  + args.beta * l_ae # + args.gradreg * spectreg_loss
-#encoder2_loss = args.alpha_reconstructed * K.maximum(0., margin - l_reg_zr_ng) + args.alpha_generated * K.maximum(0., margin - l_reg_zpp_ng) + args.beta * l_ae # + args.gradreg * spectreg_loss
-
+encoder_loss = encoder_l_adv + args.beta * l_ae
 encoder_loss += args.mmd_lambda * losses.mmd_penalty(args, sample_qz=z, sample_pz=sampled_latent_input)
 
 if args.generator_adversarial_loss:
     generator_l_adv = args.alpha_reconstructed * l_reg_zr + args.alpha_generated * l_reg_zpp
-    generator_loss = generator_l_adv + args.beta * l_ae2 # + args.gradreg * spectreg_loss
+    generator_loss = generator_l_adv + args.beta * l_ae2
 else:
     generator_l_adv = 0.0
-    generator_loss = args.beta * l_ae2 # + args.gradreg * spectreg_loss
+    generator_loss = args.beta * l_ae2
 
 if args.neg_dataset is not None:
     if args.mml:
@@ -360,19 +301,6 @@ if args.neg_dataset is not None:
     else:
         generator_loss += args.beta_neg * l_ae_neg2
 
-if args.aux:
-    aux_y = Input(batch_shape=(args.batch_size, transformer.n_transforms), name='aux_y')
-
-    aux_dense = Dense(transformer.n_transforms)
-    aux_head = aux_dense(aux_encoder(aux_input))
-    aux_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=aux_y, logits=aux_head))
-    encoder_loss += 10.0*aux_loss 
-
-    aux_head_gen = aux_dense(aux_encoder(zpp_gen))
-    aux_loss_gen = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=aux_y, logits=aux_head_gen))
-    generator_loss += 10.0*aux_loss_gen
-else:
-    aux_loss = tf.constant(0.0)
 
 joint_loss = generator_l_adv + encoder_loss
 
@@ -384,8 +312,6 @@ encoder_params = encoder.trainable_weights
 generator_params = generator.trainable_weights
 if args.trained_gamma:
     generator_params.append(log_gamma)
-if args.aux:
-    encoder_params.extend(aux_dense.trainable_weights)
 
 
 if args.separate_discriminator:
@@ -417,9 +343,6 @@ if args.gradient_clipping:
     generator_grads = zip(gen_gradients, gen_variables)
 generator_apply_grads_op = optimizer.apply_gradients(generator_grads, global_step=global_step)
 
-if args.aux:
-    aux_grads = aux_optimizer.compute_gradients(aux_loss)
-    aux_apply_grads_op = aux_optimizer.apply_gradients(aux_grads, global_step=global_step)
 
 joint_grads = joint_optimizer.compute_gradients(joint_loss)
 joint_apply_grads_op = joint_optimizer.apply_gradients(joint_grads, global_step=global_step)
@@ -540,15 +463,7 @@ with tf.Session() as session:
         z_p = np.random.normal(loc=0.0, scale=1.0, size=(args.batch_size, args.latent_dim))
         z_x, x_r, x_p = session.run([z, xr, generator_output], feed_dict={encoder_input: x, generator_input: z_p})
 
-        if args.aux:
-            transformations_inds = np.tile(np.arange(transformer.n_transforms), len(x[0:4]))
-            aux_y_np = to_categorical(transformations_inds)
-            x_transformed = transformer.transform_batch(np.repeat(x[0:4], transformer.n_transforms, axis=0), transformations_inds)
-
         train_feed_dict = {encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p}
-        if args.aux:
-            train_feed_dict[aux_input] = x_transformed[:args.batch_size]
-            train_feed_dict[aux_y] = aux_y_np[:args.batch_size]
         if args.neg_dataset is not None:
             x_n, = session.run([neg_next])
             z_n = session.run(zn, feed_dict={neg_input: x_n})
@@ -569,26 +484,9 @@ with tf.Session() as session:
         elif args.joint_training:
             _ = session.run([joint_apply_grads_op], feed_dict=train_feed_dict)
         else:
-            pass
-            #for j in range(1):
-            #    #x, _, margin_np = session.run([train_next, margin_update_op, margin])
-            #    #z_p = np.random.normal(loc=0.0, scale=1.0, size=(args.batch_size, args.latent_dim))
-            #    #z_x, x_r, x_p = session.run([z, xr, generator_output], feed_dict={encoder_input: x, generator_input: z_p})
-
             _ = session.run([encoder_apply_grads_op], feed_dict=train_feed_dict)
-            #_ = session.run([encoder1_apply_grads_op], feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p, aux_input: x_transformed[:args.batch_size], aux_y: aux_y_np[:args.batch_size]})
-            #_ = session.run([encoder2_apply_grads_op], feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p, aux_input: x_transformed[:args.batch_size], aux_y: aux_y_np[:args.batch_size]})
-
-            #for j in range(1):
-            #    #x, _, margin_np = session.run([train_next, margin_update_op, margin])
-            #    #z_p = np.random.normal(loc=0.0, scale=1.0, size=(args.batch_size, args.latent_dim))
-            #    #z_x, x_r, x_p = session.run([z, xr, generator_output], feed_dict={encoder_input: x, generator_input: z_p})
-            #    #_ = session.run([generator_apply_grads_op], feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p}) # , aux_input: x_transformed[:args.batch_size], aux_y: aux_y_np[:args.batch_size]
             _ = session.run([generator_apply_grads_op], feed_dict=train_feed_dict)
 
-        #for  j in range(x.shape[0] // args.batch_size):
-        #for j in range(3):
-        #    _ = session.run([aux_apply_grads_op], feed_dict={encoder_input: x_transformed[j*args.batch_size:(j+1)*args.batch_size], aux_y: aux_y_np[j*args.batch_size:(j+1)*args.batch_size]})
 
         if args.separate_discriminator:
             if args.fixed_gen_as_negative:
@@ -602,13 +500,13 @@ with tf.Session() as session:
 
         if (global_iters % args.frequency) == 0:
             if args.fixed_gen_as_negative:
-                gamma_np, aux_loss_np, enc_loss_np, enc_l_ae_np, l_reg_z_np, l_reg_zr_ng_np, l_reg_zpp_ng_np, generator_loss_np, dec_l_ae_np, l_reg_zr_np, l_reg_zpp_np, lr_np, l_reg_zd_np, disc_loss_np, l_reg_z_fixed_gen_np = \
-                    session.run([gamma, aux_loss, encoder_loss, l_ae, l_reg_z, l_reg_zr_ng, l_reg_zpp_ng, generator_loss, l_ae2, l_reg_zr, l_reg_zpp, learning_rate, l_reg_zd, discriminator_loss, l_reg_fixed_gen],
-                                feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p, fixed_gen_input: x_fg}) #, aux_input: x_transformed[:args.batch_size], aux_y: aux_y_np[:args.batch_size]})
+                gamma_np, enc_loss_np, enc_l_ae_np, l_reg_z_np, l_reg_zr_ng_np, l_reg_zpp_ng_np, generator_loss_np, dec_l_ae_np, l_reg_zr_np, l_reg_zpp_np, lr_np, l_reg_zd_np, disc_loss_np, l_reg_z_fixed_gen_np = \
+                    session.run([gamma, encoder_loss, l_ae, l_reg_z, l_reg_zr_ng, l_reg_zpp_ng, generator_loss, l_ae2, l_reg_zr, l_reg_zpp, learning_rate, l_reg_zd, discriminator_loss, l_reg_fixed_gen],
+                                feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p, fixed_gen_input: x_fg})
                 neptune.send_metric('l_reg_fixed_gen', x=global_iters, y=l_reg_z_fixed_gen_np)
             else:
-                gamma_np, aux_loss_np, enc_loss_np, enc_l_ae_np, l_reg_z_np, l_reg_zr_ng_np, l_reg_zpp_ng_np, generator_loss_np, dec_l_ae_np, l_reg_zr_np, l_reg_zpp_np, lr_np, l_reg_zd_np, disc_loss_np = \
-                    session.run([gamma, aux_loss, encoder_loss, l_ae, l_reg_z, l_reg_zr_ng, l_reg_zpp_ng, generator_loss, l_ae2, l_reg_zr, l_reg_zpp, learning_rate, l_reg_zd, discriminator_loss],
+                gamma_np, enc_loss_np, enc_l_ae_np, l_reg_z_np, l_reg_zr_ng_np, l_reg_zpp_ng_np, generator_loss_np, dec_l_ae_np, l_reg_zr_np, l_reg_zpp_np, lr_np, l_reg_zd_np, disc_loss_np = \
+                    session.run([gamma, encoder_loss, l_ae, l_reg_z, l_reg_zr_ng, l_reg_zpp_ng, generator_loss, l_ae2, l_reg_zr, l_reg_zpp, learning_rate, l_reg_zd, discriminator_loss],
                                 feed_dict=train_feed_dict)
 
             neptune.send_metric('disc_loss', x=global_iters, y=disc_loss_np)
@@ -622,7 +520,6 @@ with tf.Session() as session:
             neptune.send_metric('l_reg_zpp', x=global_iters, y=l_reg_zpp_np)
             neptune.send_metric('lr', x=global_iters, y=lr_np)
             neptune.send_metric('margin', x=global_iters, y=margin_np)
-            neptune.send_metric('aux', x=global_iters, y=aux_loss_np)
             neptune.send_metric('gamma', x=global_iters, y=gamma_np)
 
             print('Epoch: {}/{}, iteration: {}/{}'.format(epoch+1, args.nb_epoch, iteration+1, iterations))
@@ -671,22 +568,13 @@ with tf.Session() as session:
             print('Save B test images.')
             test_b_img = utils.plot_images(np.transpose(make_observations(xt_b_r), (0, 2, 3, 1)), n_x, n_y, "{}_test_b_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
 
-            neptune.send_image('original', orig_img)
-            neptune.send_image('generated', gen_img)
-            neptune.send_image('reconstruction', rec_img)
-            neptune.send_image('test_a', test_a_img)
-            neptune.send_image('test_b', test_b_img)
-            #neptune.send_image('test_neg', test_neg_img)
             if args.neg_dataset:
                 print('Save negative images.')
                 neg_img = utils.plot_images(np.transpose(make_observations(x_n), (0, 2, 3, 1)), n_x, n_y, "{}_negative_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
-                neptune.send_image('train_neg', neg_img)
 
             if args.fixed_gen_as_negative:
                 print('Save fixed generated images used as negative samples.')
                 fixed_gen_as_neg = utils.plot_images(np.transpose(x_fg, (0, 2, 3, 1)), n_x, n_y, "{}_fixed_gen_as_negatives_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
-                neptune.send_image('fixed_gen_as_negatives', fixed_gen_as_neg)
-
 
         if ((global_iters % iterations_per_epoch == 0) and ((epoch + 1) % 10 == 0)):
             if args.model_path is not None:
@@ -768,7 +656,6 @@ with tf.Session() as session:
             np.savez("{}_kl_epoch{}_iter{}".format(args.prefix, epoch+1, global_iters), labels=np.concatenate([np.zeros_like(kl_a), np.ones_like(kl_b)]), kl=np.concatenate([kl_a, kl_b]))
             np.savez("{}_rec_epoch{}_iter{}".format(args.prefix, epoch+1, global_iters), labels=np.concatenate([np.zeros_like(rec_a), np.ones_like(rec_b)]), rec=np.concatenate([rec_a, rec_b]))
 
-    neptune.stop()
     if args.model_path is not None:
         saved = saver.save(session, args.model_path + "/model", global_step=global_iters)
         print('Saved model to ' + saved)
