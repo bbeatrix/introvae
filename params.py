@@ -13,12 +13,12 @@ parser = argparse.ArgumentParser()
 
 # datasets
 parser.add_argument('--name', dest="name", default="", type=str, help="Name of the experiment.")
-parser.add_argument('--dataset', dest="dataset", default="celeba-128x128", type=str, help="Dataset (possible values: celeba-128x128, cifar10)")
+parser.add_argument('--dataset', dest="dataset", default="cifar10", type=str, help="Dataset (tfds name)")
 parser.add_argument('--datasets_dir', dest="datasets_dir", default="datasets", type=str, help="Location of datasets.")
 parser.add_argument('--color', dest="color", default=True, type=str2bool, help="Color (True/False)")
-parser.add_argument('--train_size', dest="train_size", type=int, default=29000, help="Train set size.")
-parser.add_argument('--test_size', dest="test_size", type=int, default=1000, help="Test set size.")
-parser.add_argument('--shape', dest="shape", default="128,128", help="Image shape.")
+parser.add_argument('--train_size', dest="train_size", type=int, default=50000, help="Train set size.")
+parser.add_argument('--test_size', dest="test_size", type=int, default=10000, help="Test set size.")
+parser.add_argument('--shape', dest="shape", default="32,32", help="Image shape.")
 parser.add_argument('--normal_class', dest="normal_class", type=int, default="-1", help="Normal class for oneclass classification (0-9, -1 means all classes)")
 parser.add_argument('--augment', dest='augment', default=False, type=str2bool, help="Use dataset augmentation (True/False)")
 parser.add_argument('--test_dataset_a', dest='test_dataset_a', default='cifar10', type=str, help="Test dataset a - for comparison on different test datasets")
@@ -33,14 +33,13 @@ parser.add_argument('--neg_test_size', dest="neg_test_size", type=int, default=1
 
 
 # model hyperparameters
-parser.add_argument('--mml', dest="mml", type=str2bool, default=False, help="If True, the likelihood of negatives is minimized, likelihood of normals is maximized")
 parser.add_argument('--margin_inf', dest="margin_inf", type=str2bool, default=False, help="If True, the margin is increasing intead of being fixed value")
 parser.add_argument('--m', dest="m", type=int, default=120, help="Value of model hyperparameter m.")
 parser.add_argument('--alpha', dest="alpha", type=float, default=None, help="Value of model hyperparameter alpha.")
-parser.add_argument('--alpha_reconstructed', dest="alpha_reconstructed", type=float, default=0.25, help="Value of model hyperparameter alpha searately for loss terms from reconstructed images.")
-parser.add_argument('--alpha_generated', dest="alpha_generated", type=float, default=0.25, help="Value of model hyperparameter alpha separately for loss terms from generated images.")
+parser.add_argument('--alpha_reconstructed', dest="alpha_reconstructed", type=float, default=0.25, help="Value of model hyperparameter alpha separately for loss terms for reconstructed images.")
+parser.add_argument('--alpha_generated', dest="alpha_generated", type=float, default=0.25, help="Value of model hyperparameter alpha separately for loss terms for generated images.")
 parser.add_argument('--alpha_neg', dest="alpha_neg", type=float, default=0.0, help="Alpha value for negative samples.")
-parser.add_argument('--alpha_fixed_gen', dest="alpha_fixed_gen", type=float, default=1.0, help="Weight of loss from fixed generated images as negatives")
+parser.add_argument('--alpha_fixed_gen', dest="alpha_fixed_gen", type=float, default=1.0, help="Weight of loss from fixed generated images as negatives.")
 parser.add_argument('--beta', dest="beta", type=float, default=0.05, help="Value of model hyperparameter beta.")
 parser.add_argument('--beta_neg', dest="beta_neg", type=float, default=0.0, help="Weight of reconstruction loss of negative samples.")
 parser.add_argument('--reg_lambda', dest="reg_lambda", type=float, default=1.0, help="Weight of vae loss.")
@@ -56,7 +55,6 @@ parser.add_argument('--neg_prior_mean_coeff', dest="neg_prior_mean_coeff", type=
 parser.add_argument('--priors_means_same_coords', dest="priors_means_same_coords", type=int, default=0, help="Number of same coordinates of means of the two priors.")
 
 # training
-parser.add_argument('--train', dest="train", default=True, type=str2bool, help="Skip train loop if set to False.")
 parser.add_argument('--lr', dest="lr", default="0.001", type=float, help="Learning rate for the optimizer.")
 parser.add_argument('--batch_size', dest="batch_size", default=200, type=int, help="Batch size.")
 parser.add_argument('--nb_epoch', dest="nb_epoch", type=int, default=200, help="Number of epochs.")
@@ -99,7 +97,6 @@ parser.add_argument('--save_fixed_gen', dest="save_fixed_gen", type=str2bool, de
 parser.add_argument('--oneclass_eval', dest="oneclass_eval", type=str2bool, default=False, help="If True, then eval oneclass classification with AUC")
 parser.add_argument('--seed', dest="seed", type=int, default=10, help="Random seed" )
 
-parser.add_argument('--gradreg', dest="gradreg", type=float, default=0.0, help="Gradreg (spectreg).")
 parser.add_argument('--lr_schedule', dest="lr_schedule", type=str, default="constant", help="Learning rate scheduling mode, can be: constant, exponential.")
 
 parser.add_argument('--gcnorm', dest='gcnorm', type=str, default="l1", help="Global contrast normalization type (can be: l1/std/None)" )

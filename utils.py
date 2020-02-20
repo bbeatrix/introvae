@@ -6,6 +6,9 @@ from keras.datasets import cifar10
 import data
 
 
+def log_metric(name, x, y):
+    print(name, x, y)
+
 def plot_images(data, n_x, n_y, name, text=None):
     (height, width, channel) = data.shape[1:]
     height_inc = height + 1
