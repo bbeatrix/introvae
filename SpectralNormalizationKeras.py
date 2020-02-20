@@ -1,3 +1,6 @@
+# This code part is not authored by the authors of the submission.
+# Source: https://github.com/IShengFang/SpectralNormalizationKeras
+
 from keras import backend as K
 from keras.engine import *
 from keras.legacy import interfaces

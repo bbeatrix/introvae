@@ -118,6 +118,7 @@ def encoder_layers_dcgan_univ(image_size, image_channels, base_channels, bn_allo
             upsamples += 1
             activation = "relu"
             use_bn = bn_allowed
+
         if encoder_use_sn:
             layers.append(ConvSN2D(channels, (kernel, kernel), strides=(stride, stride), padding=border_mode, use_bias=False, kernel_regularizer=l2(wd)))
         else:
@@ -125,10 +126,9 @@ def encoder_layers_dcgan_univ(image_size, image_channels, base_channels, bn_allo
 
         if use_bn:
             layers.append(BatchNormalization(axis=1))
-        if activation == "relu":
-            #layers.append(LeakyReLU(name="encoder_{}".format(idx)))    
-            layers.append(Activation(activation, name="encoder_{}".format(idx)))
 
+        if activation == "relu":
+            layers.append(Activation(activation, name="encoder_{}".format(idx)))
         else:
             layers.append(Activation(activation, name="encoder_{}".format(idx)))
         idx += 1
@@ -156,27 +156,22 @@ def generator_layers_dcgan_univ(image_size, image_channels, base_channels, bn_al
     kernel = 4
     border_mode="same"
     idx = 0
+    activation="relu"
+    use_bn = bn_allowed
+
     while size < image_size[0]:
-
-        activation="relu"
-        use_bn = bn_allowed
-
         channels = channels // 2
+
         layers.append(Conv2D(channels, (kernel, kernel), use_bias=False, strides=(1, 1), padding=border_mode, kernel_regularizer=l2(wd)))
         if use_bn:
             layers.append(BatchNormalization(axis=1))
-        if activation == "relu":
-            #layers.append(LeakyReLU(name="generator_{}".format(idx)))    
-            layers.append(Activation(activation, name="generator_{}".format(idx)))
-        else:
-            layers.append(Activation(activation, name="generator_{}".format(idx)))
+        layers.append(Activation(activation, name="generator_{}".format(idx)))
 
         if image_size[0] != size:
             layers.append(UpSampling2D((stride, stride)))
             size = size * 2
         idx += 1
     layers.append(Conv2D(image_channels, (kernel, kernel), use_bias=False, strides=(1, 1), padding=border_mode, kernel_regularizer=l2(wd)))
-    #layers.append(Activation("tanh", name="generator_{}".format(idx)))
 
     return layers
 

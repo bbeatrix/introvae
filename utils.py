@@ -13,8 +13,6 @@ def plot_images(data, n_x, n_y, name, text=None):
     n = len(data)
     if n > n_x*n_y: n = n_x * n_y
 
-    #data = (data + 1.0) / 2.0
-
     if channel == 1:
         mode = "L"
         data = data[:,:,:,0]
@@ -53,11 +51,7 @@ def save_output(session, prefix, epoch, global_iters, batch_size, input, output,
             test_batch = np.array(session.run(list(input.values()))[0])
             for idx in range(batch_size):
                 img_np = test_batch[idx]
-                #print('shape: ', img_np.shape)
-                #print('input keys: ', input.keys())
                 augmented_batch = session.run([x_augmented]*batch_size, feed_dict={augment_placeholder: img_np})
-                #print('augmented batch shape: ', np.array(augmented_batch).shape)
-                #print('feed: ', dict(zip(input.keys(), augmented_batch)))
                 augmented_test_mean, augmented_test_log_var, augmented_test_reconstloss = \
                     session.run(list(output.values()), feed_dict=dict(zip(input.keys(), [augmented_batch])))
                 result_dict["test_mean"].append(np.mean(augmented_test_mean, axis=0))
