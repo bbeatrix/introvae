@@ -182,11 +182,11 @@ else:
     generator_optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
     joint_optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
 
-
 if args.separate_discriminator:
     discriminator_optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
     print('Discriminator')
     discriminator.summary()
+
 
 print('Encoder')
 encoder.summary()
