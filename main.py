@@ -197,6 +197,11 @@ generator.summary()
 # Define losses
 #
 
+if args.use_augmented_variance_loss:
+    train_reg_loss = losses.augmented_variance_loss	
+else:	
+    train_reg_loss = losses.reg_loss
+
 train_reg_loss = losses.reg_loss
 
 if args.neg_dataset is not None:
