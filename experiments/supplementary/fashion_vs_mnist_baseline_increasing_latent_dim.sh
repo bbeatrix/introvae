@@ -51,6 +51,7 @@ neg_prior=False
 alpha_generated=0.0
 alpha_neg=0.0
 neg_dataset=None
+seed=1
 
 for latent_dim in 50 100 250 500
 do

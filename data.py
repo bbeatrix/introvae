@@ -17,7 +17,8 @@ def get_dataset(args, dataset, split, batch_size, limit, augment=False, normal_c
         dataset = 'downsampled_imagenet/32x32'
         if split == tfds.Split.TEST:
             split = tfds.Split.VALIDATION
-    elif dataset == 'uniform-noise':
+
+    if dataset == 'uniform-noise':
         def random_uniform_generator():
             while True:
                 yield {'image': np.random.randint(0, high=255, size=(28,28,1))}
