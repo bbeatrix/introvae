@@ -13,17 +13,10 @@ def get_dataset(args, dataset, split, batch_size, limit, augment=False, normal_c
 
     if dataset == 'emnist-letters':
         dataset = 'emnist/letters'
-    if dataset == 'imagenet':
+    elif dataset == 'imagenet':
         dataset = 'downsampled_imagenet/32x32'
         if split == tfds.Split.TEST:
             split = tfds.Split.VALIDATION
-
-    from glob import glob
-    if dataset == 'tiny-imagenet-200':
-        directory = "/home/csadrian/datasets/tiny-imagenet-200/train/*/"
-        dirs = [d + "images/*.JPEG" for d in glob(directory)]
-        ds = tf.data.Dataset.list_files(dirs)
-        ds = ds.map(lambda x: {'image':tf.image.resize_images(tf.image.decode_jpeg(tf.read_file(x), channels=3), [32, 32])})
     elif dataset == 'uniform-noise':
         def random_uniform_generator():
             while True:
@@ -92,8 +85,6 @@ def get_dataset(args, dataset, split, batch_size, limit, augment=False, normal_c
 def augment_transforms(x):
     x = tf.image.random_flip_left_right(x)
     x = tf.image.random_flip_up_down(x)
-    #x = tf.image.random_hue(x, 0.08)
-    #x = tf.image.random_saturation(x, 0.6, 1.6)
     x = tf.image.random_brightness(x, 0.05)
     x = tf.image.random_contrast(x, 0.7, 1.3)
     x = tf.contrib.image.rotate(x, tf.random_uniform(shape=[],minval=0., maxval=np.pi/2, dtype=tf.float32))
