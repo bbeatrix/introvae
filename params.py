@@ -44,7 +44,6 @@ parser.add_argument('--alpha_fixed_gen', dest="alpha_fixed_gen", type=float, def
 parser.add_argument('--beta', dest="beta", type=float, default=0.05, help="Value of model hyperparameter beta.")
 parser.add_argument('--beta_neg', dest="beta_neg", type=float, default=0.0, help="Weight of reconstruction loss of negative samples.")
 parser.add_argument('--reg_lambda', dest="reg_lambda", type=float, default=1.0, help="Weight of vae loss.")
-parser.add_argument('--use_augmented_variance_loss', dest="use_augmented_variance_loss", type=str2bool, default=False, help="If true, augmented variance loss is used instead of standard vae loss.")
 parser.add_argument('--random_images_as_negative', dest="random_images_as_negative", default=False, type=str2bool, help="Use random images as negative samples.")
 parser.add_argument('--generator_adversarial_loss', dest="generator_adversarial_loss", type=str2bool, default=True, help="If False, the generator loss is just the ae loss, otherwise the adversarial loss is added to it.")
 parser.add_argument('--fixed_gen_as_negative', dest="fixed_gen_as_negative", type=str2bool, default=False, help="Use generated images as negative samples.")
@@ -54,7 +53,6 @@ parser.add_argument('--fixed_negatives_npy', dest="fixed_negatives_npy", type=st
 parser.add_argument('--augment_avg_at_test', dest="augment_avg_at_test", type=str2bool, default=False, help="If True, likelihood is averaged over batch size number of images at test time.")
 parser.add_argument('--neg_prior', dest="neg_prior", type=str2bool, default=False, help="Use different prior for negative samples if True.")
 parser.add_argument('--neg_prior_mean_coeff', dest="neg_prior_mean_coeff", type=float, default=10, help="Coeff of mean if the negative prior is shifted Gaussian.")
-parser.add_argument('--mmd_lambda', dest="mmd_lambda", type=float, default=0.0, help="Weight of MMD loss term in encoder loss.")
 parser.add_argument('--priors_means_same_coords', dest="priors_means_same_coords", type=int, default=0, help="Number of same coordinates of means of the two priors.")
 
 # training

@@ -184,11 +184,7 @@ generator.summary()
 # Define losses
 #
 
-if args.use_augmented_variance_loss:
-    train_reg_loss = losses.augmented_variance_loss
-else:
-    train_reg_loss = losses.reg_loss
-
+train_reg_loss = losses.reg_loss
 
 if args.neg_dataset is not None:
     l_reg_neg = train_reg_loss(zn_mean, zn_log_var)
@@ -286,7 +282,6 @@ else:
     encoder_l_adv = discriminator_loss
 
 encoder_loss = encoder_l_adv + args.beta * l_ae
-encoder_loss += args.mmd_lambda * losses.mmd_penalty(args, sample_qz=z, sample_pz=sampled_latent_input)
 
 if args.generator_adversarial_loss:
     generator_l_adv = args.alpha_reconstructed * l_reg_zr + args.alpha_generated * l_reg_zpp
