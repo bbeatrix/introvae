@@ -113,7 +113,7 @@ if args.model_architecture == 'deepsvdd':
 
 elif args.model_architecture == 'baseline_mnist':
     encoder_layers = model.encoder_layers_baseline_mnist(args.shape, args.n_channels, args.base_filter_num, args.encoder_use_bn, args.encoder_wd, args.seed, args.encoder_use_sn)
-    generator_layers = model.generator_layers_baseline_mnist(args.shape, args.n_channels, args.base_filter_num, args.encoder_use_bn, args.generator_wd, args.seed)
+    generator_layers = model.generator_layers_baseline_mnist(args.shape, args.n_channels, args.base_filter_num, args.encoder_use_bn, args.generator_wd, args.seed, args)
 
 elif args.model_architecture == 'dcgan':
     encoder_layers = model.encoder_layers_dcgan(args.shape, args.base_filter_num, args.encoder_use_bn, args.encoder_wd)
@@ -128,7 +128,7 @@ else:
 
 encoder_input = Input(batch_shape=[args.batch_size] + list(args.original_shape), name='encoder_input')
 
-generator_input = Input(batch_shape=(args.batch_size, args.latent_dim), name='generator_input')
+generator_input = Input(batch_shape=(args.batch_size, args.z_num_samples, args.latent_dim), name='generator_input')
 if args.aux:
     aux_input = Input(batch_shape=[args.batch_size] + list(args.original_shape), name='aux_input')
 if args.neg_dataset is not None:
@@ -150,7 +150,7 @@ for layer in generator_layers:
 generator_output = model.add_observable_output(generator_output, args)
 z_mean_layer = Dense(args.latent_dim, kernel_regularizer=l2(args.encoder_wd))
 z_log_var_layer = Dense(args.latent_dim, kernel_regularizer=l2(args.encoder_wd))
-z, z_mean, z_log_var = model.add_sampling(encoder_output, args.sampling, args.sampling_std, args.batch_size, args.latent_dim, args.encoder_wd, z_mean_layer, z_log_var_layer)
+z, z_mean, z_log_var = model.add_sampling(encoder_output, args.sampling, args.sampling_std, args.batch_size, args.latent_dim, args.encoder_wd, z_mean_layer, z_log_var_layer, z_num_samples=args.z_num_samples)
 
 if args.trained_gamma:
     log_gamma = tf.get_variable('log_gamma', [], tf.float32, tf.constant_initializer(value=args.initial_log_gamma))
@@ -168,19 +168,20 @@ if args.separate_discriminator:
     discriminator_output = encoder_input
     for layer in encoder_layers:
         discriminator_output = layer(discriminator_output)
-    _, zd_mean, zd_log_var = model.add_sampling(discriminator_output, args.sampling, args.sampling_std, args.batch_size, args.latent_dim, args.encoder_wd)
+    _, zd_mean, zd_log_var = model.add_sampling(discriminator_output, args.sampling, args.sampling_std, args.batch_size, args.latent_dim, args.encoder_wd, z_num_samples=args.z_num_samples)
     discriminator = Model(inputs=encoder_input, outputs=[zd_mean, zd_log_var])
 else:
     discriminator = encoder
     zd_mean, zd_log_var = z_mean, z_log_var
 
 xr = generator(z)
-reconst_latent_input = Input(batch_shape=(args.batch_size, args.latent_dim), name='reconst_latent_input')
+
+reconst_latent_input = Input(batch_shape=(args.batch_size, args.z_num_samples, args.latent_dim), name='reconst_latent_input')
 zr_mean, zr_log_var = discriminator(generator(reconst_latent_input))
 zr_mean_ng, zr_log_var_ng = discriminator(tf.stop_gradient(generator(reconst_latent_input)))
 xr_latent = generator(reconst_latent_input)
 
-sampled_latent_input = Input(batch_shape=(args.batch_size, args.latent_dim), name='sampled_latent_input')
+sampled_latent_input = Input(batch_shape=(args.batch_size, args.z_num_samples, args.latent_dim), name='sampled_latent_input')
 zpp_gen = generator(sampled_latent_input)
 zpp_mean, zpp_log_var = discriminator(zpp_gen)
 #zpp_mean_ng, zpp_log_var_ng = discriminator(tf.stop_gradient(zpp_gen))
@@ -190,9 +191,9 @@ if args.neg_dataset is not None:
     neg_encoder_output = neg_input
     for layer in encoder_layers:
         neg_encoder_output = layer(neg_encoder_output)
-    zn, zn_mean, zn_log_var = model.add_sampling(neg_encoder_output, args.sampling, args.sampling_std, args.batch_size, args.latent_dim, args.encoder_wd, z_mean_layer, z_log_var_layer)
+    zn, zn_mean, zn_log_var = model.add_sampling(neg_encoder_output, args.sampling, args.sampling_std, args.batch_size, args.latent_dim, args.encoder_wd, z_mean_layer, z_log_var_layer, z_num_samples=args.z_num_samples)
     xnr = generator(zn)
-    neg_latent_input = Input(batch_shape=(args.batch_size, args.latent_dim), name='neg_latent_input')
+    neg_latent_input = Input(batch_shape=(args.batch_size, args.z_num_samples, args.latent_dim), name='neg_latent_input')
     xnr_latent = generator(neg_latent_input)
 
 global_step = tf.Variable(0, trainable=False)
@@ -259,9 +260,9 @@ HALF_LOG_TWO_PI = 0.91893
 
 def reconstruction_loss(x, xr):
     if args.obs_noise_model == 'bernoulli':
-        return -tf.reduce_sum(x * tf.log(tf.maximum(xr, 1e-8)) + (1-x) * tf.log(tf.maximum(1-xr, 1e-8)), [1, 2, 3])
+        return -tf.reduce_sum(x * tf.log(tf.maximum(xr, 1e-8)) + (1-x) * tf.log(tf.maximum(1-xr, 1e-8)), [2, 3, 4])
     else:
-        return tf.reduce_sum(tf.square((x - xr) / gamma) / 2 + log_gamma + HALF_LOG_TWO_PI, [1, 2, 3])
+        return tf.reduce_sum(tf.square((x - xr) / gamma) / 2 + log_gamma + HALF_LOG_TWO_PI, [2, 3, 4])
 
 reconst_loss = reconstruction_loss(encoder_input, xr)
 
@@ -277,6 +278,29 @@ if args.neg_dataset is not None:
 zpp_gradients = tf.gradients(l_reg_zpp, [zpp_gen])[0]
 
 assert args.gradreg == 0.0, "Not implemented"
+
+
+def eubo_loss_fn(z, z_mean, z_log_var):
+  sigma = tf.exp(z_log_var)
+
+  z_mean = tf.expand_dims(z_mean, axis=0)
+  z_log_var = tf.expand_dims(z_log_var, axis=0)
+
+  log_p_z = - tf.square(z) / 2. - HALF_LOG_TWO_PI
+  log_q_z = - (tf.square(z-z_mean) / (2. * tf.square(sigma))) - HALF_LOG_TWO_PI - tf.log(tf.square(sigma)) / 2.
+  
+  log_p_z = tf.reduce_sum(log_p_z, axis=-1)
+  log_q_z = tf.reduce_sum(log_q_z, axis=-1)
+  # (batch_size x num_samples)
+
+  log_w = tf.reduce_mean(tf.expand_dims(reconst_loss, axis=1) + log_p_z - log_q_z, axis=1)
+  w = tf.exp(log_w - tf.reduce_max(log_w, axis=1))
+  w_hat = w / tf.reduce_sum(w, axis=1)
+
+  eubo_loss = tf.stop_gradient(-w_hat) * log_q_z
+  eubo_loss = tf.reduce_sum(eubo_loss)
+  return eubo_loss
+
 
 
 if args.margin_inf or args.m < 0.:
@@ -311,7 +335,7 @@ if args.neg_dataset is not None:
             discriminator_loss += args.alpha_neg * l_reg_neg - args.beta_neg * l_ae_neg
         else:
             l_reg_neg = train_reg_loss(zn_mean - neg_prior_mean, zn_log_var)
-            discriminator_loss += args.alpha_neg * l_reg_neg + args.beta_neg * l_ae_neg
+            discriminator_loss += args.alpha_neg * l_reg_neg + args.beta_neg * l_ae_neg        
     else:
         discriminator_loss +=  args.alpha_neg * K.maximum(0., margin - l_reg_neg) + args.beta_neg * l_ae_neg
 
@@ -345,7 +369,16 @@ encoder_loss = encoder_l_adv + args.beta * l_ae #+ args.gradreg * spectreg_loss
 #encoder1_loss = args.reg_lambda * l_reg_zd  + args.beta * l_ae # + args.gradreg * spectreg_loss
 #encoder2_loss = args.alpha_reconstructed * K.maximum(0., margin - l_reg_zr_ng) + args.alpha_generated * K.maximum(0., margin - l_reg_zpp_ng) + args.beta * l_ae # + args.gradreg * spectreg_loss
 
+eubo_pos_loss = eubo_loss_fn(z, z_mean, z_log_var)
+if args.neg_dataset is not None:
+    eubo_neg_loss = eubo_loss_fn(zn, zn_mean, zn_log_var)
+else:
+    eubo_neg_loss = tf.constant(0.0)
 encoder_loss += args.mmd_lambda * losses.mmd_penalty(args, sample_qz=z, sample_pz=sampled_latent_input)
+encoder_loss += args.eubo_lambda * eubo_pos_loss
+if args.neg_dataset is not None:
+    encoder_loss += args.eubo_neg_lambda * eubo_neg_loss
+
 
 if args.generator_adversarial_loss:
     generator_l_adv = args.alpha_reconstructed * l_reg_zr + args.alpha_generated * l_reg_zpp
@@ -354,11 +387,13 @@ else:
     generator_l_adv = 0.0
     generator_loss = args.beta * l_ae2 # + args.gradreg * spectreg_loss
 
-if args.neg_dataset is not None:
     if args.mml:
         generator_loss += -args.beta_neg * l_ae_neg2 # + l_reg_zd + l_reg_neg
     else:
         generator_loss += args.beta_neg * l_ae_neg2
+    generator_loss += args.eubo_neg_lambda * eubo_neg_loss
+
+generator_loss += args.eubo_lambda * eubo_pos_loss
 
 if args.aux:
     aux_y = Input(batch_shape=(args.batch_size, transformer.n_transforms), name='aux_y')
@@ -602,13 +637,13 @@ with tf.Session() as session:
 
         if (global_iters % args.frequency) == 0:
             if args.fixed_gen_as_negative:
-                gamma_np, aux_loss_np, enc_loss_np, enc_l_ae_np, l_reg_z_np, l_reg_zr_ng_np, l_reg_zpp_ng_np, generator_loss_np, dec_l_ae_np, l_reg_zr_np, l_reg_zpp_np, lr_np, l_reg_zd_np, disc_loss_np, l_reg_z_fixed_gen_np = \
-                    session.run([gamma, aux_loss, encoder_loss, l_ae, l_reg_z, l_reg_zr_ng, l_reg_zpp_ng, generator_loss, l_ae2, l_reg_zr, l_reg_zpp, learning_rate, l_reg_zd, discriminator_loss, l_reg_fixed_gen],
+                eubo_loss_np, eubo_neg_loss_np, gamma_np, aux_loss_np, enc_loss_np, enc_l_ae_np, l_reg_z_np, l_reg_zr_ng_np, l_reg_zpp_ng_np, generator_loss_np, dec_l_ae_np, l_reg_zr_np, l_reg_zpp_np, lr_np, l_reg_zd_np, disc_loss_np, l_reg_z_fixed_gen_np = \
+                    session.run([eubo_pos_loss, eubo_neg_loss, gamma, aux_loss, encoder_loss, l_ae, l_reg_z, l_reg_zr_ng, l_reg_zpp_ng, generator_loss, l_ae2, l_reg_zr, l_reg_zpp, learning_rate, l_reg_zd, discriminator_loss, l_reg_fixed_gen],
                                 feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p, fixed_gen_input: x_fg}) #, aux_input: x_transformed[:args.batch_size], aux_y: aux_y_np[:args.batch_size]})
                 neptune.send_metric('l_reg_fixed_gen', x=global_iters, y=l_reg_z_fixed_gen_np)
             else:
-                gamma_np, aux_loss_np, enc_loss_np, enc_l_ae_np, l_reg_z_np, l_reg_zr_ng_np, l_reg_zpp_ng_np, generator_loss_np, dec_l_ae_np, l_reg_zr_np, l_reg_zpp_np, lr_np, l_reg_zd_np, disc_loss_np = \
-                    session.run([gamma, aux_loss, encoder_loss, l_ae, l_reg_z, l_reg_zr_ng, l_reg_zpp_ng, generator_loss, l_ae2, l_reg_zr, l_reg_zpp, learning_rate, l_reg_zd, discriminator_loss],
+                eubo_loss_np, eubo_neg_loss_np, gamma_np, aux_loss_np, enc_loss_np, enc_l_ae_np, l_reg_z_np, l_reg_zr_ng_np, l_reg_zpp_ng_np, generator_loss_np, dec_l_ae_np, l_reg_zr_np, l_reg_zpp_np, lr_np, l_reg_zd_np, disc_loss_np = \
+                    session.run([eubo_pos_loss, eubo_neg_loss, gamma, aux_loss, encoder_loss, l_ae, l_reg_z, l_reg_zr_ng, l_reg_zpp_ng, generator_loss, l_ae2, l_reg_zr, l_reg_zpp, learning_rate, l_reg_zd, discriminator_loss],
                                 feed_dict=train_feed_dict)
 
             neptune.send_metric('disc_loss', x=global_iters, y=disc_loss_np)
@@ -624,6 +659,9 @@ with tf.Session() as session:
             neptune.send_metric('margin', x=global_iters, y=margin_np)
             neptune.send_metric('aux', x=global_iters, y=aux_loss_np)
             neptune.send_metric('gamma', x=global_iters, y=gamma_np)
+
+            neptune.send_metric('eubo_loss', x=global_iters, y=eubo_loss_np)
+            neptune.send_metric('eubo_neg_loss', x=global_iters, y=eubo_neg_loss_np)
 
             print('Epoch: {}/{}, iteration: {}/{}'.format(epoch+1, args.nb_epoch, iteration+1, iterations))
             print(' Enc_loss: {}, l_ae:{},  l_reg_z: {}, l_reg_zr_ng: {}, l_reg_zpp_ng: {}, lr={}'.format(enc_loss_np, enc_l_ae_np, l_reg_z_np, l_reg_zr_ng_np, l_reg_zpp_ng_np, lr_np))

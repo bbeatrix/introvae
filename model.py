@@ -1,4 +1,5 @@
 import math
+import tensorflow as tf
 import keras.backend as K
 from keras.layers import Conv2D, BatchNormalization, Activation, Add, Conv2DTranspose, \
      AveragePooling2D, Input, Dense, Flatten, UpSampling2D, Layer, Reshape, Concatenate, Lambda, MaxPooling2D, LeakyReLU, Conv2DTranspose
@@ -52,7 +53,7 @@ def encoder_layers_baseline_mnist(image_size, image_channels, base_channels, bn_
     return layers
 
 
-def generator_layers_baseline_mnist(image_size, image_channels, base_channels, bn_allowed, wd, seed):
+def generator_layers_baseline_mnist(image_size, image_channels, base_channels, bn_allowed, wd, seed, args):
     """
     We follow Nalisnick et al. (arxiv: 1810.09136).
     """
@@ -61,7 +62,14 @@ def generator_layers_baseline_mnist(image_size, image_channels, base_channels, b
 
     initializer = RandomNormal(mean=0.0, stddev=np.sqrt(0.02), seed=seed)
 
+    #layers.append(Reshape((-1, 64, 7, 7)))
+    layers.append(Lambda(lambda x: tf.reshape(x, (args.batch_size * args.z_num_samples, args.latent_dim) ),
+	#input_shape=(args.batch_size, args.z_num_samples, args.latent_dim),
+	#output_shape=(args.batch_size*args.z_num_samples, args.latent_dim)
+	) )
+
     layers.append(Dense(64*7*7))
+
     layers.append(Reshape((64, 7, 7)))
 
     layers.append(Conv2DTranspose(32 , (5, 5), strides=(2, 2), padding='same', kernel_initializer=initializer, bias_initializer=initializer, kernel_regularizer=l2(wd)))
@@ -71,11 +79,13 @@ def generator_layers_baseline_mnist(image_size, image_channels, base_channels, b
     layers.append(Activation('relu'))
 
     layers.append(Conv2DTranspose(256, (5, 5), strides=(1, 1), padding='same', kernel_initializer=initializer, bias_initializer=initializer, kernel_regularizer=l2(wd)))
-    layers.append(Activation('relu'))    
+    layers.append(Activation('relu'))
 
     layers.append(Conv2D(image_channels, (5, 5), strides=(1, 1), padding='same', kernel_initializer=initializer, bias_initializer=initializer, kernel_regularizer=l2(wd)))
 
-    return layers 
+    layers.append(Lambda(lambda x: tf.reshape(x, (args.batch_size, args.z_num_samples, image_size[0], image_size[1], image_channels) ), output_shape=(args.batch_size, args.z_num_samples, image_size[0], image_size[1], image_channels) ) )
+
+    return layers
 
 
 def add_observable_output(generator_output, args):
@@ -352,7 +362,7 @@ def residual_block(model_type, kernels, filters, block, bn_allowed, stage='a', l
     return identity_block
 
 
-def add_sampling(hidden, sampling, sampling_std, batch_size, latent_dim, wd, z_mean_layer, z_log_var_layer):
+def add_sampling(hidden, sampling, sampling_std, batch_size, latent_dim, wd, z_mean_layer, z_log_var_layer, z_num_samples=1):
     z_mean = z_mean_layer(hidden)
     if not sampling:
         z_log_var = Lambda(lambda x: 0*x, output_shape=[latent_dim])(z_mean)
@@ -368,6 +378,14 @@ def add_sampling(hidden, sampling, sampling_std, batch_size, latent_dim, wd, z_m
             epsilon = K.random_normal(shape=(batch_size, latent_dim), mean=0.)
             return z_mean + K.exp(z_log_var / 2) * epsilon
 
-        z = Lambda(sampling, output_shape=(latent_dim,))([z_mean, z_log_var])
+        def multi_sampling(inputs):
+            z_mean, z_log_var = inputs
+            epsilon = K.random_normal(shape=(z_num_samples, latent_dim), mean=0.)
+            return tf.expand_dims(z_mean + K.exp(z_log_var / 2), axis=0) * tf.expand_dims(epsilon, axis=1)
+
+        if z_num_samples == 1:
+            z = Lambda(sampling, output_shape=(latent_dim,))([z_mean, z_log_var])
+        else:
+            z = Lambda(multi_sampling, output_shape=(z_num_samples, latent_dim,))([z_mean, z_log_var])
 
         return z, z_mean, z_log_var
