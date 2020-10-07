@@ -71,6 +71,9 @@ def save_output(session, prefix, epoch, global_iters, batch_size, input, output,
             inp = session.run(list(input.values()))
             res = session.run(list(output.values()), feed_dict=dict(zip(input.keys(), inp)))
             for k, r in enumerate(res):
+                if r.shape[0] != batch_size:
+                    r = np.reshape(r, (batch_size, -1))
+                    r = np.squeeze(r[:,0])
                 result_dict[list(output.keys())[k]].append(r)
         result_dict = dict(map(lambda kv: (kv[0], np.concatenate(kv[1], axis=0)), result_dict.items()))
 

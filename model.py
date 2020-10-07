@@ -63,10 +63,10 @@ def generator_layers_baseline_mnist(image_size, image_channels, base_channels, b
     initializer = RandomNormal(mean=0.0, stddev=np.sqrt(0.02), seed=seed)
 
     #layers.append(Reshape((-1, 64, 7, 7)))
-    layers.append(Lambda(lambda x: tf.reshape(x, (args.batch_size * args.z_num_samples, args.latent_dim) ),
-	#input_shape=(args.batch_size, args.z_num_samples, args.latent_dim),
-	#output_shape=(args.batch_size*args.z_num_samples, args.latent_dim)
-	) )
+    #layers.append(Lambda(lambda x: tf.reshape(x, (args.batch_size * args.z_num_samples, args.latent_dim) ),
+    #input_shape=(args.batch_size, args.z_num_samples, args.latent_dim)
+    #output_shape=(args.batch_size*args.z_num_samples, args.latent_dim)
+    #) )
 
     layers.append(Dense(64*7*7))
 
@@ -83,7 +83,7 @@ def generator_layers_baseline_mnist(image_size, image_channels, base_channels, b
 
     layers.append(Conv2D(image_channels, (5, 5), strides=(1, 1), padding='same', kernel_initializer=initializer, bias_initializer=initializer, kernel_regularizer=l2(wd)))
 
-    layers.append(Lambda(lambda x: tf.reshape(x, (args.batch_size, args.z_num_samples, image_size[0], image_size[1], image_channels) ), output_shape=(args.batch_size, args.z_num_samples, image_size[0], image_size[1], image_channels) ) )
+    #layers.append(Lambda(lambda x: tf.reshape(x, (args.batch_size, args.z_num_samples, image_size[0], image_size[1], image_channels) ), output_shape=(args.batch_size, args.z_num_samples, image_size[0], image_size[1], image_channels) ) )
 
     return layers
 
@@ -380,12 +380,15 @@ def add_sampling(hidden, sampling, sampling_std, batch_size, latent_dim, wd, z_m
 
         def multi_sampling(inputs):
             z_mean, z_log_var = inputs
-            epsilon = K.random_normal(shape=(z_num_samples, latent_dim), mean=0.)
-            return tf.expand_dims(z_mean + K.exp(z_log_var / 2), axis=0) * tf.expand_dims(epsilon, axis=1)
+            epsilon = K.random_normal(shape=(batch_size * z_num_samples, latent_dim), mean=0.)
+            z_ = tf.reshape(tf.tile(tf.expand_dims(z_mean + K.exp(z_log_var / 2), axis=0), (z_num_samples, 1, 1)), (batch_size * z_num_samples, latent_dim) ) * epsilon
+            print('z_', z_)
+            return z_
 
         if z_num_samples == 1:
             z = Lambda(sampling, output_shape=(latent_dim,))([z_mean, z_log_var])
         else:
-            z = Lambda(multi_sampling, output_shape=(z_num_samples, latent_dim,))([z_mean, z_log_var])
+            #z = Lambda(multi_sampling, output_shape=(batch_size * z_num_samples, latent_dim))([z_mean, z_log_var])
+            z = Lambda(multi_sampling)([z_mean, z_log_var])
 
         return z, z_mean, z_log_var

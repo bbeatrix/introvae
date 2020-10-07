@@ -128,7 +128,8 @@ else:
 
 encoder_input = Input(batch_shape=[args.batch_size] + list(args.original_shape), name='encoder_input')
 
-generator_input = Input(batch_shape=(args.batch_size, args.z_num_samples, args.latent_dim), name='generator_input')
+generator_s_input = Input(batch_shape=(args.batch_size, args.latent_dim), name='generator_input')
+generator_input = Input(batch_shape=(args.batch_size * args.z_num_samples, args.latent_dim), name='generator_input')
 if args.aux:
     aux_input = Input(batch_shape=[args.batch_size] + list(args.original_shape), name='aux_input')
 if args.neg_dataset is not None:
@@ -144,14 +145,19 @@ if args.aux:
 
 
 generator_output = generator_input
+generator_s_output = generator_s_input
+
 for layer in generator_layers:
     generator_output = layer(generator_output)
+    generator_s_output = layer(generator_s_output)
 
 generator_output = model.add_observable_output(generator_output, args)
+generator_s_output = model.add_observable_output(generator_s_output, args)
+
 z_mean_layer = Dense(args.latent_dim, kernel_regularizer=l2(args.encoder_wd))
 z_log_var_layer = Dense(args.latent_dim, kernel_regularizer=l2(args.encoder_wd))
 z, z_mean, z_log_var = model.add_sampling(encoder_output, args.sampling, args.sampling_std, args.batch_size, args.latent_dim, args.encoder_wd, z_mean_layer, z_log_var_layer, z_num_samples=args.z_num_samples)
-
+print(z, z_mean)
 if args.trained_gamma:
     log_gamma = tf.get_variable('log_gamma', [], tf.float32, tf.constant_initializer(value=args.initial_log_gamma))
 else:
@@ -160,6 +166,7 @@ gamma = tf.exp(log_gamma)
 
 encoder = Model(inputs=encoder_input, outputs=[z_mean, z_log_var])
 generator = Model(inputs=generator_input, outputs=generator_output)
+generator_s = Model(inputs=generator_s_input, outputs=generator_s_output)
 if args.aux:
     aux_encoder = Model(inputs=aux_input, outputs=[aux_encoder_output])
 
@@ -175,14 +182,13 @@ else:
     zd_mean, zd_log_var = z_mean, z_log_var
 
 xr = generator(z)
-
-reconst_latent_input = Input(batch_shape=(args.batch_size, args.z_num_samples, args.latent_dim), name='reconst_latent_input')
+reconst_latent_input = Input(batch_shape=(args.batch_size * args.z_num_samples, args.latent_dim), name='reconst_latent_input')
 zr_mean, zr_log_var = discriminator(generator(reconst_latent_input))
 zr_mean_ng, zr_log_var_ng = discriminator(tf.stop_gradient(generator(reconst_latent_input)))
 xr_latent = generator(reconst_latent_input)
 
-sampled_latent_input = Input(batch_shape=(args.batch_size, args.z_num_samples, args.latent_dim), name='sampled_latent_input')
-zpp_gen = generator(sampled_latent_input)
+sampled_latent_input = Input(batch_shape=(args.batch_size, args.latent_dim), name='sampled_latent_input')
+zpp_gen = generator_s(sampled_latent_input)
 zpp_mean, zpp_log_var = discriminator(zpp_gen)
 #zpp_mean_ng, zpp_log_var_ng = discriminator(tf.stop_gradient(zpp_gen))
 zpp_mean_ng, zpp_log_var_ng = discriminator(tf.stop_gradient(zpp_gen))
@@ -193,7 +199,7 @@ if args.neg_dataset is not None:
         neg_encoder_output = layer(neg_encoder_output)
     zn, zn_mean, zn_log_var = model.add_sampling(neg_encoder_output, args.sampling, args.sampling_std, args.batch_size, args.latent_dim, args.encoder_wd, z_mean_layer, z_log_var_layer, z_num_samples=args.z_num_samples)
     xnr = generator(zn)
-    neg_latent_input = Input(batch_shape=(args.batch_size, args.z_num_samples, args.latent_dim), name='neg_latent_input')
+    neg_latent_input = Input(batch_shape=(args.batch_size * args.z_num_samples, args.latent_dim), name='neg_latent_input')
     xnr_latent = generator(neg_latent_input)
 
 global_step = tf.Variable(0, trainable=False)
@@ -259,32 +265,44 @@ l_reg_zpp = train_reg_loss(zpp_mean, zpp_log_var)
 HALF_LOG_TWO_PI = 0.91893
 
 def reconstruction_loss(x, xr):
+    x = tf.expand_dims(x, axis=1)
+    x = tf.tile(x, (1, args.z_num_samples, 1, 1, 1))
+    x = tf.reshape(x, (args.batch_size * args.z_num_samples, )+ args.original_shape)
+
     if args.obs_noise_model == 'bernoulli':
-        return -tf.reduce_sum(x * tf.log(tf.maximum(xr, 1e-8)) + (1-x) * tf.log(tf.maximum(1-xr, 1e-8)), [2, 3, 4])
+        return -tf.reduce_sum(x * tf.log(tf.maximum(xr, 1e-8)) + (1-x) * tf.log(tf.maximum(1-xr, 1e-8)), [1, 2, 3])
     else:
-        return tf.reduce_sum(tf.square((x - xr) / gamma) / 2 + log_gamma + HALF_LOG_TWO_PI, [2, 3, 4])
+        return tf.reduce_sum(tf.square((x - xr) / gamma) / 2 + log_gamma + HALF_LOG_TWO_PI, [1, 2, 3])
 
 reconst_loss = reconstruction_loss(encoder_input, xr)
 
 #reconst_loss = K.mean(keras.objectives.mean_squared_error(encoder_input, xr), axis=(1,2))
 
-l_ae = tf.reduce_mean(reconstruction_loss(encoder_input, xr))
-l_ae2 = tf.reduce_mean(reconstruction_loss(encoder_input, xr_latent))
+rec_loss_per_sample = reconstruction_loss(encoder_input, xr)
+l_ae = tf.reduce_mean(rec_loss_per_sample)
+
+rec_loss_2_per_sample = reconstruction_loss(encoder_input, xr_latent)
+l_ae2 = tf.reduce_mean(rec_loss_2_per_sample)
 
 if args.neg_dataset is not None:
-    l_ae_neg = tf.reduce_mean(reconstruction_loss(neg_input, xnr))
-    l_ae_neg2 = tf.reduce_mean(reconstruction_loss(neg_input, xnr_latent))
+    neg_rec_loss_per_sample = reconstruction_loss(neg_input, xnr)
+    l_ae_neg = tf.reduce_mean(neg_rec_loss_per_sample)
+
+    neg_rec_loss_2_per_sample = reconstruction_loss(neg_input, xnr_latent)
+    l_ae_neg2 = tf.reduce_mean(neg_rec_loss_2_per_sample)
 
 zpp_gradients = tf.gradients(l_reg_zpp, [zpp_gen])[0]
 
 assert args.gradreg == 0.0, "Not implemented"
 
 
-def eubo_loss_fn(z, z_mean, z_log_var):
-  sigma = tf.exp(z_log_var)
+def eubo_loss_fn(z, z_mean, z_log_var, reconst_loss):
+  z = tf.reshape(z, (args.batch_size, args.z_num_samples, args.latent_dim))
+  reconst_loss = tf.reshape(reconst_loss, (args.batch_size, args.z_num_samples))
+  sigma = tf.expand_dims(tf.exp(z_log_var), axis=1)
 
-  z_mean = tf.expand_dims(z_mean, axis=0)
-  z_log_var = tf.expand_dims(z_log_var, axis=0)
+  z_mean = tf.tile(tf.expand_dims(z_mean, axis=1), (1, args.z_num_samples, 1))
+  z_log_var = tf.tile(tf.expand_dims(z_log_var, axis=1), (1, args.z_num_samples, 1))
 
   log_p_z = - tf.square(z) / 2. - HALF_LOG_TWO_PI
   log_q_z = - (tf.square(z-z_mean) / (2. * tf.square(sigma))) - HALF_LOG_TWO_PI - tf.log(tf.square(sigma)) / 2.
@@ -294,8 +312,8 @@ def eubo_loss_fn(z, z_mean, z_log_var):
   # (batch_size x num_samples)
 
   log_w = tf.reduce_mean(tf.expand_dims(reconst_loss, axis=1) + log_p_z - log_q_z, axis=1)
-  w = tf.exp(log_w - tf.reduce_max(log_w, axis=1))
-  w_hat = w / tf.reduce_sum(w, axis=1)
+  w = tf.exp(log_w - tf.reduce_max(log_w, axis=1, keep_dims=True))
+  w_hat = w / tf.reduce_sum(w, axis=1, keep_dims=True)
 
   eubo_loss = tf.stop_gradient(-w_hat) * log_q_z
   eubo_loss = tf.reduce_sum(eubo_loss)
@@ -369,12 +387,12 @@ encoder_loss = encoder_l_adv + args.beta * l_ae #+ args.gradreg * spectreg_loss
 #encoder1_loss = args.reg_lambda * l_reg_zd  + args.beta * l_ae # + args.gradreg * spectreg_loss
 #encoder2_loss = args.alpha_reconstructed * K.maximum(0., margin - l_reg_zr_ng) + args.alpha_generated * K.maximum(0., margin - l_reg_zpp_ng) + args.beta * l_ae # + args.gradreg * spectreg_loss
 
-eubo_pos_loss = eubo_loss_fn(z, z_mean, z_log_var)
+eubo_pos_loss = eubo_loss_fn(z, z_mean, z_log_var, rec_loss_per_sample)
 if args.neg_dataset is not None:
-    eubo_neg_loss = eubo_loss_fn(zn, zn_mean, zn_log_var)
+    eubo_neg_loss = eubo_loss_fn(zn, zn_mean, zn_log_var, neg_rec_loss_per_sample)
 else:
     eubo_neg_loss = tf.constant(0.0)
-encoder_loss += args.mmd_lambda * losses.mmd_penalty(args, sample_qz=z, sample_pz=sampled_latent_input)
+#encoder_loss += args.mmd_lambda * losses.mmd_penalty(args, sample_qz=z, sample_pz=sampled_latent_input)
 encoder_loss += args.eubo_lambda * eubo_pos_loss
 if args.neg_dataset is not None:
     encoder_loss += args.eubo_neg_lambda * eubo_neg_loss
@@ -573,7 +591,7 @@ with tf.Session() as session:
 
         x, _, margin_np = session.run([train_next, margin_update_op, margin])
         z_p = np.random.normal(loc=0.0, scale=1.0, size=(args.batch_size, args.latent_dim))
-        z_x, x_r, x_p = session.run([z, xr, generator_output], feed_dict={encoder_input: x, generator_input: z_p})
+        z_x, x_r, x_p = session.run([z, xr, generator_s_output], feed_dict={encoder_input: x, generator_s_input: z_p})
 
         if args.aux:
             transformations_inds = np.tile(np.arange(transformer.n_transforms), len(x[0:4]))
