@@ -52,7 +52,7 @@ alpha_generated=0.0
 alpha_neg=0.0
 neg_dataset='fashion_mnist'
 
-eubo_neg_lambda=0.0
+eubo_neg_lambda=0.1
 eubo_lambda=0.0
 CUDA_VISIBLE_DEVICES=0
 

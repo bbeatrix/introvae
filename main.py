@@ -295,6 +295,8 @@ zpp_gradients = tf.gradients(l_reg_zpp, [zpp_gen])[0]
 
 assert args.gradreg == 0.0, "Not implemented"
 
+import tensorflow_probability as tfp
+tfd = tfp.distributions
 
 def eubo_loss_fn(z, z_mean, z_log_var, reconst_loss):
   z = tf.reshape(z, (args.batch_size, args.z_num_samples, args.latent_dim))
@@ -304,8 +306,15 @@ def eubo_loss_fn(z, z_mean, z_log_var, reconst_loss):
   z_mean = tf.tile(tf.expand_dims(z_mean, axis=1), (1, args.z_num_samples, 1))
   z_log_var = tf.tile(tf.expand_dims(z_log_var, axis=1), (1, args.z_num_samples, 1))
 
-  log_p_z = - tf.square(z) / 2. - HALF_LOG_TWO_PI
-  log_q_z = - (tf.square(z-z_mean) / (2. * tf.square(sigma))) - HALF_LOG_TWO_PI - tf.log(tf.square(sigma)) / 2.
+  p_z = tfd.Normal(loc=0.0, scale=1.0)
+  log_p_z = p_z.log_prob(z)
+  #log_p_z = - tf.square(z) / 2. - HALF_LOG_TWO_PI
+  print('log_p_z', log_p_z)
+
+  q_z = tfd.Normal(loc=z_mean, scale=tf.sqrt(sigma))
+  log_q_z = q_z.log_prob(z)
+  #log_q_z = - (tf.square(z-z_mean) / (2. * tf.square(sigma))) - HALF_LOG_TWO_PI - tf.log(tf.square(sigma)) / 2.
+  print('log_q_z', log_q_z)
   
   log_p_z = tf.reduce_sum(log_p_z, axis=-1)
   log_q_z = tf.reduce_sum(log_q_z, axis=-1)
@@ -339,7 +348,7 @@ if args.neg_prior:
     if args.mml:
         discriminator_loss = args.reg_lambda * l_reg_zd
     else:
-        l_reg_zr_ng = train_reg_loss(zr_mean_ng - neg_prior_mean, zr_log_var)
+        l_reg_zr_ng = train_reg_loss(zr_mean_ng - neg_prior_mean, zr_log_var_ng)
         l_reg_zpp_ng = train_reg_loss(zpp_mean_ng - neg_prior_mean, zpp_log_var_ng)
         discriminator_loss = args.reg_lambda * l_reg_zd + args.alpha_reconstructed * l_reg_zr_ng + args.alpha_generated * l_reg_zpp_ng
 else:
