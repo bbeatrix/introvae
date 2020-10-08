@@ -10,7 +10,7 @@ def mse_loss(x, x_decoded, original_shape):
 
 
 def reg_loss(mean, log_var):
-    return K.mean(0.5 * K.sum(- 1 - log_var + K.square(mean) + K.exp(log_var)))
+    return K.mean(0.5 * K.sum(- 1 - log_var + K.square(mean) + K.exp(log_var), axis=-1))
 
 
 def augmented_variance_loss(mean, log_var):

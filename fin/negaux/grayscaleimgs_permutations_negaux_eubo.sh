@@ -34,7 +34,7 @@ test_dataset_b='mnist'
 model_architecture='baseline_mnist'
 optimizer='rmsprop'
 latent_dim=10
-nb_epoch=10
+nb_epoch=100
 shape=28,28
 train_size=60000
 test_size=10000
@@ -52,9 +52,9 @@ alpha_generated=0.0
 alpha_neg=0.0
 neg_dataset='fashion_mnist'
 
-eubo_neg_lambda=0.1
+eubo_neg_lambda=0.0
 eubo_lambda=0.0
-CUDA_VISIBLE_DEVICES=0
+CUDA_VISIBLE_DEVICES=1
 
 for test_dataset_a in 'fashion_mnist' 'mnist' 'emnist-letters'
 do

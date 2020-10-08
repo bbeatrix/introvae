@@ -327,6 +327,8 @@ def eubo_loss_fn(z, z_mean, z_log_var, reconst_loss):
   w_hat = w / tf.reduce_sum(w, axis=1, keep_dims=True)
 
   eubo_loss = tf.stop_gradient(-w_hat) * log_q_z
+  #eubo_loss = -w_hat * log_q_z
+
   eubo_loss = tf.reduce_sum(eubo_loss)
   return eubo_loss
 
