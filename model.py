@@ -381,14 +381,14 @@ def add_sampling(hidden, sampling, sampling_std, batch_size, latent_dim, wd, z_m
         def multi_sampling(inputs):
             z_mean, z_log_var = inputs
             epsilon = K.random_normal(shape=(batch_size * z_num_samples, latent_dim), mean=0.)
-            z_ = tf.reshape(tf.tile(tf.expand_dims(z_mean + K.exp(z_log_var / 2), axis=1), (1, z_num_samples, 1)), (batch_size * z_num_samples, latent_dim) ) * epsilon
+            z_ = tf.reshape(tf.tile(tf.expand_dims(z_mean, axis=1), (1, z_num_samples, 1)), (batch_size * z_num_samples, latent_dim)) \
+               + tf.reshape(tf.tile(tf.expand_dims(K.exp(z_log_var / 2), axis=1), (1, z_num_samples, 1)), (batch_size * z_num_samples, latent_dim) ) * epsilon
             print('z_', z_)
             return z_
 
         if z_num_samples == 1:
             z = Lambda(sampling, output_shape=(latent_dim,))([z_mean, z_log_var])
         else:
-            #z = Lambda(multi_sampling, output_shape=(batch_size * z_num_samples, latent_dim))([z_mean, z_log_var])
             z = Lambda(multi_sampling)([z_mean, z_log_var])
 
         return z, z_mean, z_log_var
