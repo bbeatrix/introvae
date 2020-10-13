@@ -321,7 +321,7 @@ def eubo_loss_fn(z, z_mean, z_log_var, reconst_loss):
   # (batch_size, num_samples)
 
   #log_w = tf.reduce_mean(reconst_loss + log_p_z - log_q_z, axis=1)
-  log_w = reconst_loss + log_p_z - log_q_z
+  log_w = args.phi * reconst_loss + args.chi * log_p_z - args.psi * log_q_z
 
   w = tf.exp(log_w - tf.reduce_max(log_w, axis=1, keep_dims=True))
   w_hat = w / tf.reduce_sum(w, axis=1, keep_dims=True)
