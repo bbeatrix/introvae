@@ -311,7 +311,7 @@ def eubo_loss_fn(z, z_mean, z_log_var, reconst_loss):
   #log_p_z = - tf.square(z) / 2. - HALF_LOG_TWO_PI
   print('log_p_z', log_p_z)
 
-  q_z = tfd.Normal(loc=z_mean, scale=tf.sqrt(sigma))
+  q_z = tfd.Normal(loc=z_mean, scale=tf.sqrt(sigma + 10e-12))
   log_q_z = q_z.log_prob(z)
   #log_q_z = - (tf.square(z-z_mean) / (2. * tf.square(sigma))) - HALF_LOG_TWO_PI - tf.log(tf.square(sigma)) / 2.
   print('log_q_z', log_q_z)
