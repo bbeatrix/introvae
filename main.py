@@ -298,7 +298,7 @@ assert args.gradreg == 0.0, "Not implemented"
 import tensorflow_probability as tfp
 tfd = tfp.distributions
 
-def eubo_loss_fn(z, z_mean, z_log_var, reconst_loss):
+def eubo_loss_fn(z, z_mean, z_log_var, reconst_loss, cubo=False):
   z = tf.reshape(z, (args.batch_size, args.z_num_samples, args.latent_dim))
   reconst_loss = tf.reshape(reconst_loss, (args.batch_size, args.z_num_samples))
   sigma = tf.expand_dims(tf.exp(z_log_var), axis=1)
@@ -325,7 +325,8 @@ def eubo_loss_fn(z, z_mean, z_log_var, reconst_loss):
 
   w = tf.exp(log_w - tf.reduce_max(log_w, axis=1, keep_dims=True))
   w_hat = w / tf.reduce_sum(w, axis=1, keep_dims=True)
-
+  if cubo:
+    w_hat = tf.square(w_hat)
   eubo_loss = tf.stop_gradient(-w_hat) * log_q_z
   #eubo_loss = -w_hat * log_q_z
 
@@ -400,9 +401,9 @@ encoder_loss = encoder_l_adv + args.beta * l_ae #+ args.gradreg * spectreg_loss
 #encoder1_loss = args.reg_lambda * l_reg_zd  + args.beta * l_ae # + args.gradreg * spectreg_loss
 #encoder2_loss = args.alpha_reconstructed * K.maximum(0., margin - l_reg_zr_ng) + args.alpha_generated * K.maximum(0., margin - l_reg_zpp_ng) + args.beta * l_ae # + args.gradreg * spectreg_loss
 
-eubo_pos_loss = eubo_loss_fn(z, z_mean, z_log_var, rec_loss_per_sample)
+eubo_pos_loss = eubo_loss_fn(z, z_mean, z_log_var, rec_loss_per_sample, args.cubo)
 if args.neg_dataset is not None:
-    eubo_neg_loss = eubo_loss_fn(zn, zn_mean, zn_log_var, neg_rec_loss_per_sample)
+    eubo_neg_loss = eubo_loss_fn(zn, zn_mean, zn_log_var, neg_rec_loss_per_sample, args.cubo)
 else:
     eubo_neg_loss = tf.constant(0.0)
 #encoder_loss += args.mmd_lambda * losses.mmd_penalty(args, sample_qz=z, sample_pz=sampled_latent_input)
