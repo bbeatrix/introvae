@@ -58,6 +58,7 @@ parser.add_argument('--mmd_lambda', dest="mmd_lambda", type=float, default=0.0, 
 parser.add_argument('--priors_means_same_coords', dest="priors_means_same_coords", type=int, default=0, help="Number of same coordinates of means of the two priors.")
 parser.add_argument('--eubo_lambda', dest="eubo_lambda", type=float, default=0.0, help="EUBO weight.")
 parser.add_argument('--eubo_neg_lambda', dest="eubo_neg_lambda", type=float, default=0.0, help="EUBO weight on negatives.")
+parser.add_argument('--eubo_gen_lambda', dest="eubo_gen_lambda", type=float, default=0.0, help="EUBO weight on generated samples as negatives.")
 parser.add_argument('--z_num_samples', dest="z_num_samples", type=int, default=1, help="Number of samples from the posterior.")
 parser.add_argument('--phi', dest="phi", type=float, default=1.0, help="Weight of reconst_loss term of weight w in EUBO.")
 parser.add_argument('--chi', dest="chi", type=float, default=1.0, help="Weight of log_p_z term of weight w in EUBO.")

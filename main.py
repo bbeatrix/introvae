@@ -192,6 +192,11 @@ zpp_gen = generator_s(sampled_latent_input)
 zpp_mean, zpp_log_var = discriminator(zpp_gen)
 #zpp_mean_ng, zpp_log_var_ng = discriminator(tf.stop_gradient(zpp_gen))
 zpp_mean_ng, zpp_log_var_ng = discriminator(tf.stop_gradient(zpp_gen))
+zg = tf.stop_gradient(zpp_gen)
+for layer in encoder_layers:
+    zg = layer(zg)
+zg, zg_mean, zg_log_var = model.add_sampling(zg, args.sampling, args.sampling_std, args.batch_size, args.latent_dim, args.encoder_wd, z_mean_layer, z_log_var_layer, z_num_samples=args.z_num_samples)
+xgr = generator(zg)
 
 if args.neg_dataset is not None:
     neg_encoder_output = neg_input
@@ -284,6 +289,8 @@ l_ae = tf.reduce_mean(rec_loss_per_sample)
 rec_loss_2_per_sample = reconstruction_loss(encoder_input, xr_latent)
 l_ae2 = tf.reduce_mean(rec_loss_2_per_sample)
 
+gen_rec_loss_per_sample = reconstruction_loss(zpp_gen, xgr)
+
 if args.neg_dataset is not None:
     neg_rec_loss_per_sample = reconstruction_loss(neg_input, xnr)
     l_ae_neg = tf.reduce_mean(neg_rec_loss_per_sample)
@@ -332,7 +339,6 @@ def eubo_loss_fn(z, z_mean, z_log_var, reconst_loss, cubo=False):
 
   eubo_loss = tf.reduce_sum(eubo_loss)
   return eubo_loss
-
 
 
 if args.margin_inf or args.m < 0.:
@@ -402,12 +408,13 @@ encoder_loss = encoder_l_adv + args.beta * l_ae #+ args.gradreg * spectreg_loss
 #encoder2_loss = args.alpha_reconstructed * K.maximum(0., margin - l_reg_zr_ng) + args.alpha_generated * K.maximum(0., margin - l_reg_zpp_ng) + args.beta * l_ae # + args.gradreg * spectreg_loss
 
 eubo_pos_loss = eubo_loss_fn(z, z_mean, z_log_var, rec_loss_per_sample, args.cubo)
+eubo_gen_loss = eubo_loss_fn(zg, zg_mean, zg_log_var, gen_rec_loss_per_sample, args.cubo)
 if args.neg_dataset is not None:
     eubo_neg_loss = eubo_loss_fn(zn, zn_mean, zn_log_var, neg_rec_loss_per_sample, args.cubo)
 else:
     eubo_neg_loss = tf.constant(0.0)
 #encoder_loss += args.mmd_lambda * losses.mmd_penalty(args, sample_qz=z, sample_pz=sampled_latent_input)
-encoder_loss += args.eubo_lambda * eubo_pos_loss
+encoder_loss += args.eubo_lambda * eubo_pos_loss + args.eubo_gen_lambda * eubo_gen_loss
 if args.neg_dataset is not None:
     encoder_loss += args.eubo_neg_lambda * eubo_neg_loss
 
@@ -425,7 +432,7 @@ else:
         generator_loss += args.beta_neg * l_ae_neg2
     generator_loss += args.eubo_neg_lambda * eubo_neg_loss
 
-generator_loss += args.eubo_lambda * eubo_pos_loss
+generator_loss += args.eubo_lambda * eubo_pos_loss + args.eubo_gen_lambda * eubo_gen_loss
 
 if args.aux:
     aux_y = Input(batch_shape=(args.batch_size, transformer.n_transforms), name='aux_y')
@@ -669,13 +676,13 @@ with tf.Session() as session:
 
         if (global_iters % args.frequency) == 0:
             if args.fixed_gen_as_negative:
-                eubo_loss_np, eubo_neg_loss_np, gamma_np, aux_loss_np, enc_loss_np, enc_l_ae_np, l_reg_z_np, l_reg_zr_ng_np, l_reg_zpp_ng_np, generator_loss_np, dec_l_ae_np, l_reg_zr_np, l_reg_zpp_np, lr_np, l_reg_zd_np, disc_loss_np, l_reg_z_fixed_gen_np = \
-                    session.run([eubo_pos_loss, eubo_neg_loss, gamma, aux_loss, encoder_loss, l_ae, l_reg_z, l_reg_zr_ng, l_reg_zpp_ng, generator_loss, l_ae2, l_reg_zr, l_reg_zpp, learning_rate, l_reg_zd, discriminator_loss, l_reg_fixed_gen],
+                eubo_loss_np, eubo_neg_loss_np, eubo_gen_loss_np, gamma_np, aux_loss_np, enc_loss_np, enc_l_ae_np, l_reg_z_np, l_reg_zr_ng_np, l_reg_zpp_ng_np, generator_loss_np, dec_l_ae_np, l_reg_zr_np, l_reg_zpp_np, lr_np, l_reg_zd_np, disc_loss_np, l_reg_z_fixed_gen_np = \
+                    session.run([eubo_pos_loss, eubo_neg_loss, eubo_gen_loss, gamma, aux_loss, encoder_loss, l_ae, l_reg_z, l_reg_zr_ng, l_reg_zpp_ng, generator_loss, l_ae2, l_reg_zr, l_reg_zpp, learning_rate, l_reg_zd, discriminator_loss, l_reg_fixed_gen],
                                 feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p, fixed_gen_input: x_fg}) #, aux_input: x_transformed[:args.batch_size], aux_y: aux_y_np[:args.batch_size]})
                 neptune.send_metric('l_reg_fixed_gen', x=global_iters, y=l_reg_z_fixed_gen_np)
             else:
-                eubo_loss_np, eubo_neg_loss_np, gamma_np, aux_loss_np, enc_loss_np, enc_l_ae_np, l_reg_z_np, l_reg_zr_ng_np, l_reg_zpp_ng_np, generator_loss_np, dec_l_ae_np, l_reg_zr_np, l_reg_zpp_np, lr_np, l_reg_zd_np, disc_loss_np = \
-                    session.run([eubo_pos_loss, eubo_neg_loss, gamma, aux_loss, encoder_loss, l_ae, l_reg_z, l_reg_zr_ng, l_reg_zpp_ng, generator_loss, l_ae2, l_reg_zr, l_reg_zpp, learning_rate, l_reg_zd, discriminator_loss],
+                eubo_loss_np, eubo_neg_loss_np, eubo_gen_loss_np, gamma_np, aux_loss_np, enc_loss_np, enc_l_ae_np, l_reg_z_np, l_reg_zr_ng_np, l_reg_zpp_ng_np, generator_loss_np, dec_l_ae_np, l_reg_zr_np, l_reg_zpp_np, lr_np, l_reg_zd_np, disc_loss_np = \
+                    session.run([eubo_pos_loss, eubo_neg_loss, eubo_gen_loss, gamma, aux_loss, encoder_loss, l_ae, l_reg_z, l_reg_zr_ng, l_reg_zpp_ng, generator_loss, l_ae2, l_reg_zr, l_reg_zpp, learning_rate, l_reg_zd, discriminator_loss],
                                 feed_dict=train_feed_dict)
 
             neptune.send_metric('disc_loss', x=global_iters, y=disc_loss_np)
@@ -694,6 +701,7 @@ with tf.Session() as session:
 
             neptune.send_metric('eubo_loss', x=global_iters, y=eubo_loss_np)
             neptune.send_metric('eubo_neg_loss', x=global_iters, y=eubo_neg_loss_np)
+            neptune.send_metric('eubo_gen_loss', x=global_iters, y=eubo_gen_loss_np)
 
             print('Epoch: {}/{}, iteration: {}/{}'.format(epoch+1, args.nb_epoch, iteration+1, iterations))
             print(' Enc_loss: {}, l_ae:{},  l_reg_z: {}, l_reg_zr_ng: {}, l_reg_zpp_ng: {}, lr={}'.format(enc_loss_np, enc_l_ae_np, l_reg_z_np, l_reg_zr_ng_np, l_reg_zpp_ng_np, lr_np))
