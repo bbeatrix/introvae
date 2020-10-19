@@ -400,6 +400,7 @@ else:
         generator_loss += -args.beta_neg * l_ae_neg2
     else:
         generator_loss += args.beta_neg * l_ae_neg2
+if args.neg_dataset is not None:
     generator_loss += args.eubo_neg_lambda * eubo_neg_loss
 
 generator_loss += args.eubo_lambda * eubo_pos_loss + args.eubo_gen_lambda * eubo_gen_loss
