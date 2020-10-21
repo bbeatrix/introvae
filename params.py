@@ -106,6 +106,7 @@ parser.add_argument('--tags', dest="tags", type=str, default="junk", help="Tags 
 parser.add_argument('--memory_share', dest="memory_share", type=float, default=0.95, help="Fraction of memory that can be allocated to this process.")
 parser.add_argument('--frequency', dest="frequency", type=int, default=20, help="Image saving frequency.")
 parser.add_argument('--save_latent', dest="save_latent", type=str2bool, default=False, help="If True, then save latent pointcloud.")
+parser.add_argument('--save', dest="save", type=str2bool, default=False, help="If True, then save outputs.")
 parser.add_argument('--latent_cloud_size', dest="latent_cloud_size", type=int, default=10000, help="Size of latent cloud.")
 parser.add_argument('--save_fixed_gen', dest="save_fixed_gen", type=str2bool, default=False, help='If True, then save fixed_gen_num of generated images.')
 parser.add_argument('--oneclass_eval', dest="oneclass_eval", type=str2bool, default=False, help="If True, then eval oneclass classification with AUC")

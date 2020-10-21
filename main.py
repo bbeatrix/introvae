@@ -483,7 +483,8 @@ with tf.Session() as session:
     if args.neg_dataset is not None:
         session.run([neg_iterator_init_op, neg_test_iterator_init_op])
 
-    summary_writer = tf.summary.FileWriter(args.prefix+"/", graph=tf.get_default_graph())
+    if args.save:
+        summary_writer = tf.summary.FileWriter(args.prefix+"/", graph=tf.get_default_graph())
     saver = tf.train.Saver(max_to_keep=None)
     if args.model_path is not None and tf.train.checkpoint_exists(args.model_path):
         saver.restore(session, tf.train.latest_checkpoint(args.model_path))
@@ -540,7 +541,7 @@ with tf.Session() as session:
             else:
                 _ = session.run([discriminator_apply_grads_op], feed_dict={encoder_input: x, reconst_latent_input: z_x, sampled_latent_input: z_p})
 
-        if global_iters % args.frequency == 0:
+        if global_iters % args.frequency == 0 and args.save:
             summary, = session.run([summary_op], feed_dict={encoder_input: x})
             summary_writer.add_summary(summary, global_iters)
 
@@ -578,22 +579,22 @@ with tf.Session() as session:
             print(' Dec_loss: {}, l_ae:{}, l_reg_zr: {}, l_reg_zpp: {}, lr={}'.format(generator_loss_np, dec_l_ae_np, l_reg_zr_np, l_reg_zpp_np, lr_np))
             print(' Disc_loss: {}, l_reg_zd: {}, l_reg_zr_ng: {}, l_reg_zpp_ng: {}'.format(disc_loss_np, l_reg_zd_np, l_reg_zr_ng_np, l_reg_zpp_ng_np))
 
-        if ((global_iters % iterations_per_epoch == 0) and args.save_latent):
+        if global_iters % iterations_per_epoch == 0:
             _ = session.run([test_iterator_init_op_a, test_iterator_init_op_b])
-            _ = utils.save_output(session, '_'.join([args.prefix, args.dataset]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: fixed_next}), OrderedDict({"train_mean": z_mean, "train_log_var": z_log_var, "train_reconstloss": reconst_loss}), args.latent_cloud_size)
-            a_result_dict = utils.save_output(session, '_'.join([args.prefix, args.test_dataset_a]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next_a}), OrderedDict({"test_a_mean": z_mean, "test_a_log_var": z_log_var, "test_a_reconstloss": reconst_loss}), test_size_a, args.augment_avg_at_test, args.original_shape)
-            b_result_dict = utils.save_output(session, '_'.join([args.prefix, args.test_dataset_b]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next_b}), OrderedDict({"test_b_mean": z_mean, "test_b_log_var": z_log_var, "test_b_reconstloss": reconst_loss}), test_size_b, args.augment_avg_at_test, args.original_shape)
+            _ = utils.save_output(session, '_'.join([args.prefix, args.dataset]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: fixed_next}), OrderedDict({"train_mean": z_mean, "train_log_var": z_log_var, "train_reconstloss": reconst_loss}), args.latent_cloud_size, save=args.save)
+            a_result_dict = utils.save_output(session, '_'.join([args.prefix, args.test_dataset_a]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next_a}), OrderedDict({"test_a_mean": z_mean, "test_a_log_var": z_log_var, "test_a_reconstloss": reconst_loss}), test_size_a, save=args.save)
+            b_result_dict = utils.save_output(session, '_'.join([args.prefix, args.test_dataset_b]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next_b}), OrderedDict({"test_b_mean": z_mean, "test_b_log_var": z_log_var, "test_b_reconstloss": reconst_loss}), test_size_b, save=args.save)
             if args.neg_dataset is not None:
-                neg_result_dict = utils.save_output(session, '_'.join([args.prefix, args.neg_dataset]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: neg_test_next}), OrderedDict({"test_neg_mean": z_mean, "test_neg_log_var": z_log_var, "test_neg_reconstloss": reconst_loss}), neg_test_size, args.augment_avg_at_test, args.original_shape)
+                neg_result_dict = utils.save_output(session, '_'.join([args.prefix, args.neg_dataset]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: neg_test_next}), OrderedDict({"test_neg_mean": z_mean, "test_neg_log_var": z_log_var, "test_neg_reconstloss": reconst_loss}), neg_test_size, save=args.save)
             if args.alpha_generated > 0.0:
                 sampled_latent_tensor = tf.random_normal([args.batch_size, args.latent_dim])
-                _ = utils.save_output(session, '_'.join([args.prefix, args.dataset]), epoch, global_iters, args.batch_size, OrderedDict({sampled_latent_input: sampled_latent_tensor}), OrderedDict({"adv_gen_mean": zpp_mean, "adv_gen_log_var": zpp_log_var}), args.latent_cloud_size)
+                _ = utils.save_output(session, '_'.join([args.prefix, args.dataset]), epoch, global_iters, args.batch_size, OrderedDict({sampled_latent_input: sampled_latent_tensor}), OrderedDict({"adv_gen_mean": zpp_mean, "adv_gen_log_var": zpp_log_var}), args.latent_cloud_size, save=args.save)
 
         if (global_iters % iterations_per_epoch == 0) and args.save_fixed_gen and ((epoch+1 <= 10) or ((epoch+1)%10 == 0)):
             z_fixed_gen = tf.random_normal([args.batch_size, args.latent_dim])
-            _ = utils.save_output(session, '_'.join([args.prefix, args.dataset]), epoch, global_iters, args.batch_size, OrderedDict({generator_input: z_fixed_gen}), OrderedDict({"fixed_gen": generator_output}), args.fixed_gen_num)
+            _ = utils.save_output(session, '_'.join([args.prefix, args.dataset]), epoch, global_iters, args.batch_size, OrderedDict({generator_input: z_fixed_gen}), OrderedDict({"fixed_gen": generator_output}), args.fixed_gen_num, save=args.save)
 
-        if ((global_iters % iterations_per_epoch == 0) and args.save_latent and (epoch + 1) % 10 == 0):
+        if ((global_iters % iterations_per_epoch == 0) and (epoch + 1) % 10 == 0):
 
             _ = session.run([test_iterator_init_op_a, test_iterator_init_op_b])
             xt_a, xt_b = session.run([test_next_a, test_next_b])
@@ -607,15 +608,15 @@ with tf.Session() as session:
             n_y = min(args.batch_size // n_x, 50)
             print('Save original images.')
 
-            orig_img = utils.plot_images(np.transpose(make_observations(x), (0, 2, 3, 1)), n_x, n_y, "{}_original_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
+            orig_img = utils.plot_images(np.transpose(make_observations(x), (0, 2, 3, 1)), n_x, n_y, "{}_original_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None, save=args.save)
             print('Save generated images.')
-            gen_img = utils.plot_images(np.transpose(make_observations(x_p), (0, 2, 3, 1)), n_x, n_y, "{}_sampled_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
+            gen_img = utils.plot_images(np.transpose(make_observations(x_p), (0, 2, 3, 1)), n_x, n_y, "{}_sampled_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None, save=args.save)
             print('Save reconstructed images.')
-            rec_img = utils.plot_images(np.transpose(make_observations(x_r), (0, 2, 3, 1)), n_x, n_y, "{}_reconstructed_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
+            rec_img = utils.plot_images(np.transpose(make_observations(x_r), (0, 2, 3, 1)), n_x, n_y, "{}_reconstructed_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None, save=args.save)
             print('Save A test images.')
-            test_a_img = utils.plot_images(np.transpose(make_observations(xt_a_r), (0, 2, 3, 1)), n_x, n_y, "{}_test_a_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
+            test_a_img = utils.plot_images(np.transpose(make_observations(xt_a_r), (0, 2, 3, 1)), n_x, n_y, "{}_test_a_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None, save=args.save)
             print('Save B test images.')
-            test_b_img = utils.plot_images(np.transpose(make_observations(xt_b_r), (0, 2, 3, 1)), n_x, n_y, "{}_test_b_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
+            test_b_img = utils.plot_images(np.transpose(make_observations(xt_b_r), (0, 2, 3, 1)), n_x, n_y, "{}_test_b_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None, save=args.save)
 
             neptune.send_image('original', orig_img)
             neptune.send_image('generated', gen_img)
@@ -624,17 +625,17 @@ with tf.Session() as session:
             neptune.send_image('test_b', test_b_img)
             if args.neg_dataset:
                 print('Save negative images.')
-                neg_img = utils.plot_images(np.transpose(make_observations(x_n), (0, 2, 3, 1)), n_x, n_y, "{}_negative_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
+                neg_img = utils.plot_images(np.transpose(make_observations(x_n), (0, 2, 3, 1)), n_x, n_y, "{}_negative_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None, save=args.save)
                 neptune.send_image('train_neg', neg_img)
 
             if args.fixed_gen_as_negative:
                 print('Save fixed generated images used as negative samples.')
-                fixed_gen_as_neg = utils.plot_images(np.transpose(x_fg, (0, 2, 3, 1)), n_x, n_y, "{}_fixed_gen_as_negatives_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None)
+                fixed_gen_as_neg = utils.plot_images(np.transpose(x_fg, (0, 2, 3, 1)), n_x, n_y, "{}_fixed_gen_as_negatives_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None, save=args.save)
                 neptune.send_image('fixed_gen_as_negatives', fixed_gen_as_neg)
 
 
         if ((global_iters % iterations_per_epoch == 0) and ((epoch + 1) % 10 == 0)):
-            if args.model_path is not None:
+            if args.model_path is not None and args.save:
                 saved = saver.save(session, args.model_path + "/model", global_step=global_iters)
                 print('Saved model to ' + saved)
 
@@ -705,11 +706,11 @@ with tf.Session() as session:
 
             kl_a, kl_b, rec_a, rec_b = compare(a_result_dict, b_result_dict, args.test_dataset_a, args.test_dataset_b, "")
 
-        if False and (global_iters % iterations_per_epoch == 0) and ((epoch + 1) % 10 == 0):
+        if args.save and (global_iters % iterations_per_epoch == 0) and ((epoch + 1) % 10 == 0):
             np.savez("{}_kl_epoch{}_iter{}".format(args.prefix, epoch+1, global_iters), labels=np.concatenate([np.zeros_like(kl_a), np.ones_like(kl_b)]), kl=np.concatenate([kl_a, kl_b]))
             np.savez("{}_rec_epoch{}_iter{}".format(args.prefix, epoch+1, global_iters), labels=np.concatenate([np.zeros_like(rec_a), np.ones_like(rec_b)]), rec=np.concatenate([rec_a, rec_b]))
 
     neptune.stop()
-    if args.model_path is not None:
+    if args.model_path is not None and args.save:
         saved = saver.save(session, args.model_path + "/model", global_step=global_iters)
         print('Saved model to ' + saved)

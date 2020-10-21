@@ -36,7 +36,7 @@ def plot_images(data, n_x, n_y, name, text=None, save=False):
     return img
 
 
-def save_output(session, prefix, epoch, global_iters, batch_size, input, output, limit, save=False, original_shape=None):
+def save_output(session, prefix, epoch, global_iters, batch_size, input, output, limit, save=False):
     result_dict = {}
     for key in output.keys():
         result_dict[key] = []
