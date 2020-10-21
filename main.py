@@ -304,7 +304,7 @@ def eubo_loss_fn(z, z_mean, z_log_var, reconst_loss, cubo=False):
     log_p_z = tf.reduce_sum(log_p_z, axis=-1)
     log_q_z = tf.reduce_sum(log_q_z, axis=-1)
 
-    log_w = args.phi * reconst_loss + args.chi * log_p_z - args.psi * log_q_z
+    log_w = args.phi * args.train_size * reconst_loss + args.chi * log_p_z - args.psi * log_q_z
 
     w = tf.exp(log_w - tf.reduce_max(log_w, axis=1, keep_dims=True))
     w_hat = w / tf.reduce_sum(w, axis=1, keep_dims=True)
@@ -312,7 +312,7 @@ def eubo_loss_fn(z, z_mean, z_log_var, reconst_loss, cubo=False):
         w_hat = tf.square(w_hat)
     eubo_loss = tf.stop_gradient(-w_hat) * log_q_z
 
-    eubo_loss = tf.reduce_sum(eubo_loss)
+    eubo_loss = tf.reduce_mean(tf.reduce_sum(eubo_loss, axis=-1))
     return eubo_loss
 
 
