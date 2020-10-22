@@ -285,9 +285,9 @@ assert args.gradreg == 0.0, "Not implemented"
 import tensorflow_probability as tfp
 tfd = tfp.distributions
 
-def eubo_loss_fn(z, z_mean, z_log_var, reconst_loss, cubo=False):
+def eubo_loss_fn(z, z_mean, z_log_var, reconst_loss_2, cubo=False):
     z = tf.reshape(z, (args.batch_size, args.z_num_samples, args.latent_dim))
-    reconst_loss = tf.reshape(reconst_loss, (args.batch_size, args.z_num_samples))
+    reconst_loss_2 = tf.reshape(reconst_loss_2, (args.batch_size, args.z_num_samples))
     sigma = tf.expand_dims(tf.exp(z_log_var), axis=1)
 
     z_mean = tf.tile(tf.expand_dims(z_mean, axis=1), (1, args.z_num_samples, 1))
@@ -304,7 +304,7 @@ def eubo_loss_fn(z, z_mean, z_log_var, reconst_loss, cubo=False):
     log_p_z = tf.reduce_sum(log_p_z, axis=-1)
     log_q_z = tf.reduce_sum(log_q_z, axis=-1)
 
-    log_w = args.phi * args.train_size * reconst_loss + args.chi * log_p_z - args.psi * log_q_z
+    log_w = args.phi * args.train_size * reconst_loss_2 + args.chi * log_p_z - args.psi * log_q_z
 
     w = tf.exp(log_w - tf.reduce_max(log_w, axis=1, keep_dims=True))
     w_hat = w / tf.reduce_sum(w, axis=1, keep_dims=True)
@@ -312,7 +312,7 @@ def eubo_loss_fn(z, z_mean, z_log_var, reconst_loss, cubo=False):
         w_hat = tf.square(w_hat)
     eubo_loss = tf.stop_gradient(-w_hat) * log_q_z
 
-    eubo_loss = tf.reduce_mean(tf.reduce_sum(eubo_loss, axis=-1))
+    eubo_loss = tf.reduce_mean(eubo_loss)
     return eubo_loss
 
 
@@ -377,10 +377,10 @@ else:
 
 encoder_loss = encoder_l_adv + args.beta * l_ae
 
-eubo_pos_loss = eubo_loss_fn(z, z_mean, z_log_var, rec_loss_per_sample, args.cubo)
+eubo_pos_loss = eubo_loss_fn(z, z_mean, z_log_var, rec_loss_2_per_sample, args.cubo)
 eubo_gen_loss = eubo_loss_fn(zg, zg_mean, zg_log_var, gen_rec_loss_per_sample, args.cubo)
 if args.neg_dataset is not None:
-    eubo_neg_loss = eubo_loss_fn(zn, zn_mean, zn_log_var, neg_rec_loss_per_sample, args.cubo)
+    eubo_neg_loss = eubo_loss_fn(zn, zn_mean, zn_log_var, neg_rec_loss_2_per_sample, args.cubo)
 else:
     eubo_neg_loss = tf.constant(0.0)
 
