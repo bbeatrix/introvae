@@ -249,71 +249,26 @@ l_reg_zr = train_reg_loss(zr_mean, zr_log_var)
 l_reg_zpp = train_reg_loss(zpp_mean, zpp_log_var)
 
 
-HALF_LOG_TWO_PI = 0.91893
+reconst_loss = losses.reconstruction_loss(encoder_input, xr)
 
-def reconstruction_loss(x, xr):
-    x = tf.expand_dims(x, axis=1)
-    x = tf.tile(x, (1, args.z_num_samples, 1, 1, 1))
-    x = tf.reshape(x, (args.batch_size * args.z_num_samples, )+ args.original_shape)
-
-    if args.obs_noise_model == 'bernoulli':
-        return -tf.reduce_sum(x * tf.log(tf.maximum(xr, 1e-8)) + (1-x) * tf.log(tf.maximum(1-xr, 1e-8)), [1, 2, 3])
-    else:
-        return tf.reduce_sum(tf.square((x - xr) / gamma) / 2 + log_gamma + HALF_LOG_TWO_PI, [1, 2, 3])
-
-reconst_loss = reconstruction_loss(encoder_input, xr)
-
-rec_loss_per_sample = reconstruction_loss(encoder_input, xr)
+rec_loss_per_sample = losses.reconstruction_loss(encoder_input, xr)
 l_ae = tf.reduce_mean(rec_loss_per_sample)
 
-rec_loss_2_per_sample = reconstruction_loss(encoder_input, xr_latent)
+rec_loss_2_per_sample = losses.reconstruction_loss(encoder_input, xr_latent)
 l_ae2 = tf.reduce_mean(rec_loss_2_per_sample)
 
-gen_rec_loss_per_sample = reconstruction_loss(zpp_gen, xgr)
+gen_rec_loss_per_sample = losses.reconstruction_loss(zpp_gen, xgr)
 
 if args.neg_dataset is not None:
-    neg_rec_loss_per_sample = reconstruction_loss(neg_input, xnr)
+    neg_rec_loss_per_sample = losses.reconstruction_loss(neg_input, xnr)
     l_ae_neg = tf.reduce_mean(neg_rec_loss_per_sample)
 
-    neg_rec_loss_2_per_sample = reconstruction_loss(neg_input, xnr_latent)
+    neg_rec_loss_2_per_sample = losses.reconstruction_loss(neg_input, xnr_latent)
     l_ae_neg2 = tf.reduce_mean(neg_rec_loss_2_per_sample)
 
 zpp_gradients = tf.gradients(l_reg_zpp, [zpp_gen])[0]
 
 assert args.gradreg == 0.0, "Not implemented"
-
-import tensorflow_probability as tfp
-tfd = tfp.distributions
-
-def eubo_loss_fn(z, z_mean, z_log_var, reconst_loss_2, cubo=False):
-    z = tf.reshape(z, (args.batch_size, args.z_num_samples, args.latent_dim))
-    reconst_loss_2 = tf.reshape(reconst_loss_2, (args.batch_size, args.z_num_samples))
-    sigma = tf.expand_dims(tf.exp(z_log_var), axis=1)
-
-    z_mean = tf.tile(tf.expand_dims(z_mean, axis=1), (1, args.z_num_samples, 1))
-    z_log_var = tf.tile(tf.expand_dims(z_log_var, axis=1), (1, args.z_num_samples, 1))
-
-    p_z = tfd.Normal(loc=0.0, scale=1.0)
-    log_p_z = p_z.log_prob(z)
-    print('log_p_z', log_p_z)
-
-    q_z = tfd.Normal(loc=z_mean, scale=tf.sqrt(sigma + 10e-12))
-    log_q_z = q_z.log_prob(z)
-    print('log_q_z', log_q_z)
-
-    log_p_z = tf.reduce_sum(log_p_z, axis=-1)
-    log_q_z = tf.reduce_sum(log_q_z, axis=-1)
-
-    log_w = args.phi * args.train_size * reconst_loss_2 + args.chi * log_p_z - args.psi * log_q_z
-
-    w = tf.exp(log_w - tf.reduce_max(log_w, axis=1, keep_dims=True))
-    w_hat = w / tf.reduce_sum(w, axis=1, keep_dims=True)
-    if cubo:
-        w_hat = tf.square(w_hat)
-    eubo_loss = tf.stop_gradient(-w_hat) * log_q_z
-
-    eubo_loss = tf.reduce_mean(eubo_loss)
-    return eubo_loss
 
 
 if args.margin_inf or args.m < 0.:
@@ -377,10 +332,10 @@ else:
 
 encoder_loss = encoder_l_adv + args.beta * l_ae
 
-eubo_pos_loss = eubo_loss_fn(z, z_mean, z_log_var, rec_loss_2_per_sample, args.cubo)
-eubo_gen_loss = eubo_loss_fn(zg, zg_mean, zg_log_var, gen_rec_loss_per_sample, args.cubo)
+eubo_pos_loss = losses.eubo_loss_fn(z, z_mean, z_log_var, rec_loss_2_per_sample, args.cubo)
+eubo_gen_loss = losses.eubo_loss_fn(zg, zg_mean, zg_log_var, gen_rec_loss_per_sample, args.cubo)
 if args.neg_dataset is not None:
-    eubo_neg_loss = eubo_loss_fn(zn, zn_mean, zn_log_var, neg_rec_loss_2_per_sample, args.cubo)
+    eubo_neg_loss = losses.eubo_loss_fn(zn, zn_mean, zn_log_var, neg_rec_loss_2_per_sample, args.cubo)
 else:
     eubo_neg_loss = tf.constant(0.0)
 
