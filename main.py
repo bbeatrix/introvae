@@ -249,21 +249,21 @@ l_reg_zr = train_reg_loss(zr_mean, zr_log_var)
 l_reg_zpp = train_reg_loss(zpp_mean, zpp_log_var)
 
 
-reconst_loss = losses.reconstruction_loss(encoder_input, xr)
+reconst_loss = losses.reconstruction_loss(args, gamma, log_gamma, encoder_input, xr)
 
-rec_loss_per_sample = losses.reconstruction_loss(encoder_input, xr)
+rec_loss_per_sample = losses.reconstruction_loss(args, gamma, log_gamma, encoder_input, xr)
 l_ae = tf.reduce_mean(rec_loss_per_sample)
 
-rec_loss_2_per_sample = losses.reconstruction_loss(encoder_input, xr_latent)
+rec_loss_2_per_sample = losses.reconstruction_loss(args, gamma, log_gamma, encoder_input, xr_latent)
 l_ae2 = tf.reduce_mean(rec_loss_2_per_sample)
 
-gen_rec_loss_per_sample = losses.reconstruction_loss(zpp_gen, xgr)
+gen_rec_loss_per_sample = losses.reconstruction_loss(args, gamma, log_gamma, zpp_gen, xgr)
 
 if args.neg_dataset is not None:
-    neg_rec_loss_per_sample = losses.reconstruction_loss(neg_input, xnr)
+    neg_rec_loss_per_sample = losses.reconstruction_loss(args, gamma, log_gamma, neg_input, xnr)
     l_ae_neg = tf.reduce_mean(neg_rec_loss_per_sample)
 
-    neg_rec_loss_2_per_sample = losses.reconstruction_loss(neg_input, xnr_latent)
+    neg_rec_loss_2_per_sample = losses.reconstruction_loss(args, gamma, log_gamma, neg_input, xnr_latent)
     l_ae_neg2 = tf.reduce_mean(neg_rec_loss_2_per_sample)
 
 zpp_gradients = tf.gradients(l_reg_zpp, [zpp_gen])[0]
@@ -332,10 +332,10 @@ else:
 
 encoder_loss = encoder_l_adv + args.beta * l_ae
 
-eubo_pos_loss = losses.eubo_loss_fn(z, z_mean, z_log_var, rec_loss_2_per_sample, args.cubo)
-eubo_gen_loss = losses.eubo_loss_fn(zg, zg_mean, zg_log_var, gen_rec_loss_per_sample, args.cubo)
+eubo_pos_loss = losses.eubo_loss_fn(args, z, z_mean, z_log_var, rec_loss_2_per_sample, args.cubo)
+eubo_gen_loss = losses.eubo_loss_fn(args, zg, zg_mean, zg_log_var, gen_rec_loss_per_sample, args.cubo)
 if args.neg_dataset is not None:
-    eubo_neg_loss = losses.eubo_loss_fn(zn, zn_mean, zn_log_var, neg_rec_loss_2_per_sample, args.cubo)
+    eubo_neg_loss = losses.eubo_loss_fn(args, zn, zn_mean, zn_log_var, neg_rec_loss_2_per_sample, args.cubo)
 else:
     eubo_neg_loss = tf.constant(0.0)
 

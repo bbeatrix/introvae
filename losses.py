@@ -41,7 +41,7 @@ def eubo_loss_fn(args, z, z_mean, z_log_var, reconst_loss_2, cubo=False):
 
 HALF_LOG_TWO_PI = 0.91893
 
-def reconstruction_loss(x, xr):
+def reconstruction_loss(args, gamma, log_gamma, x, xr):
     x = tf.expand_dims(x, axis=1)
     x = tf.tile(x, (1, args.z_num_samples, 1, 1, 1))
     x = tf.reshape(x, (args.batch_size * args.z_num_samples, )+ args.original_shape)
