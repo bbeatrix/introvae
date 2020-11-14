@@ -340,10 +340,10 @@ encoder_loss = encoder_l_adv + args.beta * l_ae
 #else:
 #    eubo_neg_loss = tf.constant(0.0)
 
-eubo_pos_loss = losses.new_eubo_loss_fn(l_ae, z_mean, z_log_var)
-eubo_gen_loss = losses.new_eubo_loss_fn(l_ae_gen, zg_mean, zg_log_var)
+eubo_pos_loss = losses.new_eubo_loss_fn(l_ae, z_mean, z_log_var, margin=args.eubo_margin)
+eubo_gen_loss = losses.new_eubo_loss_fn(l_ae_gen, zg_mean, zg_log_var, margin=args.eubo_margin)
 if args.neg_dataset is not None:
-    eubo_neg_loss = losses.new_eubo_loss_fn(l_ae_neg, zn_mean, zn_log_var)
+    eubo_neg_loss = losses.new_eubo_loss_fn(l_ae_neg, zn_mean, zn_log_var, margin=args.eubo_margin)
 else:
     eubo_neg_loss = tf.constant(0.0)
 

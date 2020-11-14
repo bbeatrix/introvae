@@ -64,6 +64,7 @@ parser.add_argument('--phi', dest="phi", type=float, default=1.0, help="Weight o
 parser.add_argument('--chi', dest="chi", type=float, default=1.0, help="Weight of log_p_z term of weight w in EUBO.")
 parser.add_argument('--psi', dest="psi", type=float, default=1.0, help="Weight of log_q_z term of weight w in EUBO.")
 parser.add_argument('--cubo', dest="cubo", type=str2bool, default=False, help="Use CUBO instead of EUBO if True.")
+parser.add_argument('--eubo_margin', dest="eubo_margin", type=int, default=-1, help="Margin for eubo.")
 
 
 # training
