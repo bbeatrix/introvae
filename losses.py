@@ -8,6 +8,11 @@ import tensorflow_probability as tfp
 tfd = tfp.distributions
 
 
+def new_eubo_loss_fn(reconst_loss, mean, log_var, cubo=False):
+    loss = - reconst_loss + tf.reduce_mean(0.5 * tf.reduce_sum(1 + log_var + tf.square(mean) + tf.exp(log_var), axis=-1))
+    return loss
+
+
 def eubo_loss_fn(args, z, z_mean, z_log_var, reconst_loss_2, cubo=False):
     z = tf.reshape(z, (args.batch_size, args.z_num_samples, args.latent_dim))
     reconst_loss_2 = tf.reshape(reconst_loss_2, (args.batch_size, args.z_num_samples))
