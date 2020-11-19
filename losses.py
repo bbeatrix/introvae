@@ -10,9 +10,9 @@ tfd = tfp.distributions
 
 def new_eubo_loss_fn(reconst_loss, mean, log_var, cubo=False, margin=-1):
     if margin >= 0:
-        loss = - reconst_loss + K.maximum(0., margin - tf.reduce_mean(0.5 * tf.reduce_sum(1 + log_var + tf.square(mean) + tf.exp(log_var), axis=-1)))
+        loss = - reconst_loss + K.maximum(0., margin - tf.reduce_mean(0.5 * tf.reduce_sum(1 + log_var - tf.square(mean) - tf.exp(log_var), axis=-1)))
     else:
-        loss = - reconst_loss + tf.reduce_mean(0.5 * tf.reduce_sum(1 + log_var + tf.square(mean) + tf.exp(log_var), axis=-1))
+        loss = - reconst_loss + tf.reduce_mean(0.5 * tf.reduce_sum(1 + log_var - tf.square(mean) - tf.exp(log_var), axis=-1))
     return loss
 
 
