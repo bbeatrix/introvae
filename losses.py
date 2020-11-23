@@ -8,11 +8,13 @@ import tensorflow_probability as tfp
 tfd = tfp.distributions
 
 
-def new_eubo_loss_fn(reconst_loss, mean, log_var, cubo=False, margin=-1):
+def new_eubo_loss_fn(reconst_loss, mean, log_var, eubo_vau, cubo_power, cubo=False, margin=-1):
     if margin >= 0:
-        loss = - reconst_loss + K.maximum(0., margin - tf.reduce_mean(0.5 * tf.reduce_sum(1 + log_var - tf.square(mean) - tf.exp(log_var), axis=-1)))
+        loss = - eubo_vau * reconst_loss + K.maximum(0., margin - tf.reduce_mean(0.5 * tf.reduce_sum(1 + log_var - tf.square(mean) - tf.exp(log_var), axis=-1)))
     else:
-        loss = - reconst_loss + tf.reduce_mean(0.5 * tf.reduce_sum(1 + log_var - tf.square(mean) - tf.exp(log_var), axis=-1))
+        loss = - eubo_vau * reconst_loss + tf.reduce_mean(0.5 * tf.reduce_sum(1 + log_var - tf.square(mean) - tf.exp(log_var), axis=-1))
+    if cubo:
+        loss = tf.exp(cubo_power * loss)
     return loss
 
 
