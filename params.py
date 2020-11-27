@@ -64,6 +64,7 @@ parser.add_argument('--phi', dest="phi", type=float, default=1.0, help="Weight o
 parser.add_argument('--chi', dest="chi", type=float, default=1.0, help="Weight of log_p_z term of weight w in EUBO.")
 parser.add_argument('--psi', dest="psi", type=float, default=1.0, help="Weight of log_q_z term of weight w in EUBO.")
 parser.add_argument('--cubo', dest="cubo", type=str2bool, default=False, help="Use CUBO instead of EUBO if True.")
+parser.add_argument('--new_eubo', dest="new_eubo", type=str2bool, default=False, help="Use new_eubo_loss instead of eubo_loss if True.")
 parser.add_argument('--eubo_margin', dest="eubo_margin", type=int, default=-1, help="Margin for eubo.")
 parser.add_argument('--eubo_vau', dest="eubo_vau", type=float, default=1, help="Weight of reconstruction loss term in new eubo loss.")
 parser.add_argument('--cubo_power', dest="cubo_power", type=int, default=2, help="Exponent in CUBO.")

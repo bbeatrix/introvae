@@ -333,19 +333,20 @@ else:
 
 encoder_loss = encoder_l_adv + args.beta * l_ae
 
-#eubo_pos_loss = losses.eubo_loss_fn(args, z, z_mean, z_log_var, rec_loss_2_per_sample, args.cubo)
-#eubo_gen_loss = losses.eubo_loss_fn(args, zg, zg_mean, zg_log_var, gen_rec_loss_per_sample, args.cubo)
-#if args.neg_dataset is not None:
-#    eubo_neg_loss = losses.eubo_loss_fn(args, zn, zn_mean, zn_log_var, neg_rec_loss_2_per_sample, args.cubo)
-#else:
-#    eubo_neg_loss = tf.constant(0.0)
-
-eubo_pos_loss = losses.new_eubo_loss_fn(l_ae, z_mean, z_log_var, eubo_vau=args.eubo_vau, cubo_power=args.cubo_power, cubo=args.cubo, margin=args.eubo_margin)
-eubo_gen_loss = losses.new_eubo_loss_fn(l_ae_gen, zg_mean, zg_log_var, eubo_vau=args.eubo_vau, cubo_power=args.cubo_power, cubo=args.cubo, margin=args.eubo_margin)
-if args.neg_dataset is not None:
-    eubo_neg_loss = losses.new_eubo_loss_fn(l_ae_neg, zn_mean, zn_log_var, eubo_vau=args.eubo_vau, cubo_power=args.cubo_power, cubo=args.cubo, margin=args.eubo_margin)
+if args.new_eubo:
+    eubo_pos_loss = eubo_loss_func(args, l_ae, z_mean, z_log_var)
+    eubo_gen_loss = eubo_loss_func(args, l_ae_gen, zg_mean, zg_log_var)
+    if args.neg_dataset is not None:
+        eubo_neg_loss = eubo_loss_func(args, l_ae_neg, zn_mean, zn_log_var)
+    else:
+        eubo_neg_loss = tf.constant(0.0)
 else:
-    eubo_neg_loss = tf.constant(0.0)
+    eubo_pos_loss = losses.eubo_loss_fn(args, rec_loss_2_per_sample, z_mean, z_log_var, z)
+    eubo_gen_loss = losses.eubo_loss_fn(args, gen_rec_loss_per_sample, zg_mean, zg_log_var, zg)
+    if args.neg_dataset is not None:
+        eubo_neg_loss = losses.eubo_loss_fn(args, neg_rec_loss_2_per_sample, zn_mean, zn_log_var, zn)
+    else:
+        eubo_neg_loss = tf.constant(0.0)
 
 
 encoder_loss += args.eubo_lambda * eubo_pos_loss + args.eubo_gen_lambda * eubo_gen_loss

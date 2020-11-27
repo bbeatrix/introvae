@@ -8,17 +8,17 @@ import tensorflow_probability as tfp
 tfd = tfp.distributions
 
 
-def new_eubo_loss_fn(reconst_loss, mean, log_var, eubo_vau, cubo_power, cubo=False, margin=-1):
-    if margin >= 0:
-        loss = - eubo_vau * reconst_loss + K.maximum(0., margin - tf.reduce_mean(0.5 * tf.reduce_sum(1 + log_var - tf.square(mean) - tf.exp(log_var), axis=-1)))
+def new_eubo_loss_fn(args, reconst_loss, mean, log_var):
+    if args.eubo_margin >= 0:
+        loss = - args.eubo_vau * reconst_loss + K.maximum(0., args.eubo_margin - tf.reduce_mean(0.5 * tf.reduce_sum(1 + log_var - tf.square(mean) - tf.exp(log_var), axis=-1)))
     else:
-        loss = - eubo_vau * reconst_loss + tf.reduce_mean(0.5 * tf.reduce_sum(1 + log_var - tf.square(mean) - tf.exp(log_var), axis=-1))
-    if cubo:
-        loss = tf.exp(cubo_power * loss)
+        loss = - args.eubo_vau * reconst_loss + tf.reduce_mean(0.5 * tf.reduce_sum(1 + log_var - tf.square(mean) - tf.exp(log_var), axis=-1))
+    if args.cubo:
+        loss = tf.exp(args.cubo_power * loss)
     return loss
 
 
-def eubo_loss_fn(args, z, z_mean, z_log_var, reconst_loss_2, cubo=False):
+def eubo_loss_fn(args, reconst_loss_2, z_mean, z_log_var, z):
     z = tf.reshape(z, (args.batch_size, args.z_num_samples, args.latent_dim))
     reconst_loss_2 = tf.reshape(reconst_loss_2, (args.batch_size, args.z_num_samples))
     sigma = tf.expand_dims(tf.exp(z_log_var), axis=1)
@@ -41,7 +41,7 @@ def eubo_loss_fn(args, z, z_mean, z_log_var, reconst_loss_2, cubo=False):
 
     w = tf.exp(log_w - tf.reduce_max(log_w, axis=1, keep_dims=True))
     w_hat = w / tf.reduce_sum(w, axis=1, keep_dims=True)
-    if cubo:
+    if args.cubo:
         w_hat = tf.square(w_hat)
     eubo_loss = tf.stop_gradient(-w_hat) * log_q_z
 
