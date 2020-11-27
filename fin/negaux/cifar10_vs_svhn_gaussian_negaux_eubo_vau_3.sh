@@ -57,13 +57,13 @@ eubo_lambda=0.0
 z_num_samples=1
 seed=0
 eubo_margin=30
-eubo_vau=0.1
+eubo_vau=0.0
 
 CUDA_VISIBLE_DEVICES=3
 
-for eubo_neg_lambda in 200
+for eubo_neg_lambda in 100
 do
-    for eubo_margin in -1 20 40 60
+    for eubo_margin in 80 100 150 200 400
     do
         tags="${name_prefix},${neg_dataset},${test_dataset_a},${test_dataset_b},${obs_noise_model}"
         name="${d}_${name_prefix}_${test_dataset_a}_vs_${test_dataset_b}_${obs_noise_model}_quantized=${add_obs_noise}_neg_dataset=${neg_dataset}_seed=${seed}"
