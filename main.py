@@ -355,7 +355,7 @@ if args.neg_dataset is not None:
 
 
 if args.generator_adversarial_loss:
-    generator_l_adv = args.alpha_reconstructed * l_reg_zr + args.alpha_generated * l_reg_zpp
+    generator_l_adv = args.alpha_reconstructed * l_reg_zr + args.alpha_generated * l_reg_zpp + args.alpha_adv_gen * l_reg_zpp + args.beta_adv_gen * l_ae_gen
     generator_loss = generator_l_adv + args.beta * l_ae2
 else:
     generator_l_adv = 0.0

@@ -68,6 +68,8 @@ parser.add_argument('--new_eubo', dest="new_eubo", type=str2bool, default=False,
 parser.add_argument('--eubo_margin', dest="eubo_margin", type=int, default=-1, help="Margin for eubo.")
 parser.add_argument('--eubo_vau', dest="eubo_vau", type=float, default=1, help="Weight of reconstruction loss term in new eubo loss.")
 parser.add_argument('--cubo_power', dest="cubo_power", type=int, default=2, help="Exponent in CUBO.")
+parser.add_argument('--alpha_adv_gen', dest="alpha_adv_gen", type=float, default=0.0, help="Weight of reg loss term in adv gen loss.")
+parser.add_argument('--beta_adv_gen', dest="beta_adv_gen", type=float, default=0.0, help="Weight of reconstruction loss term in adv gen loss.")
 
 
 # training
