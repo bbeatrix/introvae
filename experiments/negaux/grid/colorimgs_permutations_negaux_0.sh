@@ -34,7 +34,7 @@ test_dataset_b='cifar10'
 model_architecture='dcgan_univ'
 optimizer='adam'
 latent_dim=100
-nb_epoch=500
+nb_epoch=100
 shape=32,32
 train_size=50000
 test_size=10000
@@ -52,12 +52,12 @@ alpha_generated=0.0
 alpha_neg=0.0
 neg_dataset='svhn_cropped'
 
-eubo_neg_lambda=1.0
+eubo_neg_lambda=100.0
 eubo_lambda=0.0
 z_num_samples=1
 seed=0
 
-CUDA_VISIBLE_DEVICES=1
+CUDA_VISIBLE_DEVICES=0
 
 for test_dataset_a in 'cifar10' 'imagenet' 'svhn_cropped'
 do
@@ -72,7 +72,7 @@ do
                     for add_obs_noise in False
                     do
                         if test ${obs_noise_model} != 'bernoulli' || test ${add_obs_noise} != True; then
-                            for seed in 1 2 3 4 5 6 7 8 9 10
+                            for seed in 1 2
                             do
                                 tags="${name_prefix},${neg_dataset},${test_dataset_a},${test_dataset_b},${obs_noise_model}"
                                 name="${d}_${name_prefix}_${test_dataset_a}_vs_${test_dataset_b}_${obs_noise_model}_quantized=${add_obs_noise}_neg_dataset=${neg_dataset}_seed=${seed}"
