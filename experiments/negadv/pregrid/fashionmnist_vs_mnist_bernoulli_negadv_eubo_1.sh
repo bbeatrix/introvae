@@ -61,13 +61,13 @@ seed=0
 alpha_adv_gen=1.0
 beta_adv_gen=1.0
 
-CUDA_VISIBLE_DEVICES=0
+CUDA_VISIBLE_DEVICES=1
 
-for eubo_gen_lambda in 1.0
+for eubo_gen_lambda in 0.1
 do
-    for alpha_adv_gen in 1.0
+    for alpha_adv_gen in 0.1
     do
-        for beta_adv_gen in 1.0
+        for beta_adv_gen in 0.1
         do
             tags="${name_prefix},${neg_dataset},${test_dataset_a},${test_dataset_b},${obs_noise_model}"
             name="${d}_${name_prefix}_${test_dataset_a}_vs_${test_dataset_b}_${obs_noise_model}_quantized=${add_obs_noise}_neg_dataset=${neg_dataset}_seed=${seed}"
