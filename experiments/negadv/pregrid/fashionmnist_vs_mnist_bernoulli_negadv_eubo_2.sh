@@ -61,9 +61,9 @@ seed=0
 alpha_adv_gen=1.0
 beta_adv_gen=1.0
 
-CUDA_VISIBLE_DEVICES=0
+CUDA_VISIBLE_DEVICES=2
 
-for eubo_gen_lambda in 1.0
+for eubo_gen_lambda in 10.0
 do
     for alpha_adv_gen in 1.0
     do
