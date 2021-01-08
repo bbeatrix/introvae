@@ -65,7 +65,7 @@ CUDA_VISIBLE_DEVICES=7
 for test_dataset_a in 'svhn_cropped' # 'imagenet' 'cifar10'
 do
     train_dataset=${test_dataset_a}
-    for test_dataset_b in 'cifar10' 'imagenet' 'svhn_cropped'
+    for test_dataset_b in 'imagenet' # 'svhn_cropped' 'cifar10'
     do
         if test ${test_dataset_a} != ${test_dataset_b}; then
             for obs_noise_model in 'bernoulli' 'gaussian'

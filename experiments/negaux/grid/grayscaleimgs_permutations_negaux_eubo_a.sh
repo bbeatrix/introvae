@@ -26,7 +26,7 @@ gcnorm=None
 save_latent=True
 frequency=1000
 d=$(date +%Y-%m-%d-%H:%M:%S)
-name_prefix='FIN_negaux_eubo'
+name_prefix='JMLREXPS_negaux'
 color=False
 train_dataset='emnist-letters'
 test_dataset_a='emnist-letters'
@@ -56,9 +56,9 @@ neg_dataset='fashion_mnist'
 z_num_samples=1
 eubo_neg_lambda=1.0
 eubo_lambda=0.0
-CUDA_VISIBLE_DEVICES=5
+CUDA_VISIBLE_DEVICES=0
 
-for test_dataset_a in 'fashion_mnist' 'mnist' 'emnist-letters'
+for test_dataset_a in 'mnist' 'emnist-letters'
 do
     train_dataset=${test_dataset_a}
     for test_dataset_b in 'fashion_mnist' 'mnist' 'emnist-letters'

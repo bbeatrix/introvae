@@ -56,19 +56,19 @@ neg_dataset='fashion_mnist'
 z_num_samples=1
 eubo_neg_lambda=1.0
 eubo_lambda=0.0
-CUDA_VISIBLE_DEVICES=1
+CUDA_VISIBLE_DEVICES=3
 
-for test_dataset_a in 'mnist' 'emnist-letters'
+for test_dataset_a in 'fashion_mnist'
 do
     train_dataset=${test_dataset_a}
-    for test_dataset_b in 'fashion_mnist' 'mnist' 'emnist-letters'
+    for test_dataset_b in 'emnist-letters'
     do
         for neg_dataset in 'fashion_mnist' 'mnist' 'emnist-letters'
         do
             if test ${test_dataset_a} != ${test_dataset_b} && test ${test_dataset_a} != ${neg_dataset} && test ${test_dataset_b} != ${neg_dataset}; then
-                for obs_noise_model in 'bernoulli' 'gaussian'
+                for obs_noise_model in 'gaussian'
                 do
-                    for seed in 4 5 6
+                    for seed in 3 7 8 9 10
                     do
                         tags="${name_prefix},${neg_dataset},${test_dataset_a},${test_dataset_b},${obs_noise_model}"
                         name="${d}_${name_prefix}_${test_dataset_a}_vs_${test_dataset_b}_${obs_noise_model}_neg_dataset=${neg_dataset}_seed=${seed}"
