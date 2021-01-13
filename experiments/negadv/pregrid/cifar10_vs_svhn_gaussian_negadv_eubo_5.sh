@@ -26,7 +26,7 @@ gcnorm=None
 save_latent=True
 frequency=1000
 d=$(date +%Y-%m-%d-%H:%M:%S)
-name_prefix='FIN_negadv_eubo_last_chance'
+name_prefix='FIN_negadv_eubo_last_'
 color=True
 train_dataset='cifar10'
 test_dataset_a='cifar10'
@@ -61,7 +61,7 @@ seed=0
 alpha_adv_gen=0.1
 beta_adv_gen=0.1
 
-CUDA_VISIBLE_DEVICES=0
+CUDA_VISIBLE_DEVICES=5
 
 for eubo_gen_lambda in 0.1
 do
