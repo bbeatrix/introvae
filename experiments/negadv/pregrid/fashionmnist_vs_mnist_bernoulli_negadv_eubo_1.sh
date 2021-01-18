@@ -26,7 +26,7 @@ gcnorm=None
 save_latent=True
 frequency=1000
 d=$(date +%Y-%m-%d-%H:%M:%S)
-name_prefix='FIN_negadv_eubo'
+name_prefix='FIN_negadv_eubo_bnsn'
 color=False
 train_dataset='fashion_mnist'
 test_dataset_a='fashion_mnist'
@@ -39,7 +39,7 @@ shape=28,28
 train_size=60000
 test_size=10000
 encoder_use_bn=False
-generator_use_bn=False
+generator_use_bn=True
 encoder_use_sn=True
 neg_train_size=60000
 neg_test_size=10000
@@ -65,9 +65,9 @@ CUDA_VISIBLE_DEVICES=1
 
 for eubo_gen_lambda in 0.1
 do
-    for alpha_adv_gen in 0.1
+    for alpha_adv_gen in 0.01 0.1 1.0 10
     do
-        for beta_adv_gen in 0.1
+        for beta_adv_gen in 0.01 0.1 1.0 10
         do
             tags="${name_prefix},${neg_dataset},${test_dataset_a},${test_dataset_b},${obs_noise_model}"
             name="${d}_${name_prefix}_${test_dataset_a}_vs_${test_dataset_b}_${obs_noise_model}_quantized=${add_obs_noise}_neg_dataset=${neg_dataset}_seed=${seed}"

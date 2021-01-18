@@ -26,26 +26,26 @@ gcnorm=None
 save_latent=True
 frequency=1000
 d=$(date +%Y-%m-%d-%H:%M:%S)
-name_prefix='FIN_negadv_eubo'
-color=False
-train_dataset='fashion_mnist'
-test_dataset_a='fashion_mnist'
-test_dataset_b='mnist'
-model_architecture='baseline_mnist'
-optimizer='rmsprop'
-latent_dim=10
-nb_epoch=100
-shape=28,28
-train_size=60000
+name_prefix='FIN_negadv_eubo_last_'
+color=True
+train_dataset='cifar10'
+test_dataset_a='cifar10'
+test_dataset_b='svhn_cropped'
+model_architecture='dcgan_univ'
+optimizer='adam'
+latent_dim=100
+nb_epoch=300
+shape=32,32
+train_size=50000
 test_size=10000
 encoder_use_bn=False
-generator_use_bn=False
+generator_use_bn=True
 encoder_use_sn=True
-neg_train_size=60000
+neg_train_size=50000
 neg_test_size=10000
-neg_prior_mean_coeff=8
+neg_prior_mean_coeff=25
 beta_neg=0.0
-obs_noise_model='bernoulli'
+obs_noise_model='gaussian'
 add_obs_noise=False
 neg_prior=False
 alpha_generated=0.0
@@ -53,21 +53,21 @@ alpha_neg=0.0
 neg_dataset=None
 
 eubo_neg_lambda=0.0
-eubo_gen_lambda=1.0
+eubo_gen_lambda=0.1
 eubo_lambda=0.0
 z_num_samples=1
 new_eubo=False
 seed=0
-alpha_adv_gen=1.0
-beta_adv_gen=1.0
+alpha_adv_gen=0.1
+beta_adv_gen=0.1
 
-CUDA_VISIBLE_DEVICES=2
+CUDA_VISIBLE_DEVICES=4
 
-for eubo_gen_lambda in 10.0
+for eubo_gen_lambda in 1.0
 do
-    for alpha_adv_gen in 1.0
+    for alpha_adv_gen in 0.01
     do
-        for beta_adv_gen in 1.0
+        for beta_adv_gen in 0.0 0.01 0.1 1.0
         do
             tags="${name_prefix},${neg_dataset},${test_dataset_a},${test_dataset_b},${obs_noise_model}"
             name="${d}_${name_prefix}_${test_dataset_a}_vs_${test_dataset_b}_${obs_noise_model}_quantized=${add_obs_noise}_neg_dataset=${neg_dataset}_seed=${seed}"
