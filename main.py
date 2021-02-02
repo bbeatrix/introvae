@@ -70,19 +70,27 @@ print("train_size: ", train_size)
 print("test_size_a: ", test_size_a)
 print("test_size_b: ", test_size_b)
 
+args.n_channels = 3 if args.color else 1
+args.original_shape = (args.n_channels, ) + args.shape
+
 train_data, train_iterator, train_iterator_init_op, train_next = data.get_dataset(args, args.dataset, tfds.Split.TRAIN, args.batch_size, train_size, args.augment, args.normal_class, add_obs_noise=args.add_obs_noise)
 fixed_data, fixed_iterator, fixed_iterator_init_op, fixed_next = data.get_dataset(args, args.dataset, tfds.Split.TRAIN, args.batch_size, args.latent_cloud_size, args.augment, args.normal_class, add_obs_noise=args.add_obs_noise)
 test_data_a, test_iterator_a, test_iterator_init_op_a, test_next_a = data.get_dataset(args, args.test_dataset_a, tfds.Split.TEST, args.batch_size, test_size_a, args.augment, args.normal_class, outliers=False, add_obs_noise=args.add_obs_noise)
 test_data_b, test_iterator_b, test_iterator_init_op_b, test_next_b = data.get_dataset(args, args.test_dataset_b, tfds.Split.TEST, args.batch_size, test_size_b, args.augment, args.normal_class, outliers=True, add_obs_noise=args.add_obs_noise)
+
+other_test_imgs = ['constant_0', 'constant_100', 'constant_128', 'constant_255', 'uniform-noise']
+test_stuff_dict = {'test_iterator_init_ops': [], 'test_next_ops': []}
+for item in other_test_imgs:
+    _, _, test_iterator_init_op, test_next = data.get_dataset(args, item, tfds.Split.TEST, args.batch_size, test_size_a, args.augment, args.normal_class, outliers=True, add_obs_noise=False)
+    test_stuff_dict['test_iterator_init_ops'].append(test_iterator_init_op)
+    test_stuff_dict['test_next_ops'].append(test_next)
+
 
 if args.neg_dataset is not None:
     neg_train_size = args.neg_train_size
     neg_test_size = args.neg_test_size
     neg_data, neg_iterator, neg_iterator_init_op, neg_next = data.get_dataset(args, args.neg_dataset, tfds.Split.TRAIN, args.batch_size, neg_train_size, args.augment, add_obs_noise=args.add_obs_noise, add_iso_noise=args.add_iso_noise_to_neg)
     neg_test_data, neg_test_iterator, neg_test_iterator_init_op, neg_test_next = data.get_dataset(args, args.neg_dataset, tfds.Split.TEST, args.batch_size, neg_test_size, args.augment, add_obs_noise=args.add_obs_noise, add_iso_noise=args.add_iso_noise_to_neg)
-
-args.n_channels = 3 if args.color else 1
-args.original_shape = (args.n_channels, ) + args.shape
 
 transformer = Transformer()
 
@@ -444,7 +452,7 @@ start_epoch = 0
 
 with tf.Session() as session:
     init = tf.global_variables_initializer()
-    session.run([init, train_iterator_init_op, test_iterator_init_op_a, test_iterator_init_op_b, fixed_iterator_init_op])
+    session.run([init, train_iterator_init_op, test_iterator_init_op_a, test_iterator_init_op_b, fixed_iterator_init_op] + test_stuff_dict['test_iterator_init_ops'])
     if args.neg_dataset is not None:
         session.run([neg_iterator_init_op, neg_test_iterator_init_op])
 
@@ -545,13 +553,19 @@ with tf.Session() as session:
             print(' Disc_loss: {}, l_reg_zd: {}, l_reg_zr_ng: {}, l_reg_zpp_ng: {}'.format(disc_loss_np, l_reg_zd_np, l_reg_zr_ng_np, l_reg_zpp_ng_np))
 
         if global_iters % iterations_per_epoch == 0:
-            _ = session.run([test_iterator_init_op_a, test_iterator_init_op_b])
+            _ = session.run([test_iterator_init_op_a, test_iterator_init_op_b] + test_stuff_dict['test_iterator_init_ops'])
             _ = utils.save_output(session, '_'.join([args.prefix, args.dataset]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: fixed_next}), OrderedDict({"train_mean": z_mean, "train_log_var": z_log_var, "train_reconstloss": reconst_loss}), args.latent_cloud_size, save=args.save)
             a_result_dict = utils.save_output(session, '_'.join([args.prefix, args.test_dataset_a]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next_a}), OrderedDict({"test_a_mean": z_mean, "test_a_log_var": z_log_var, "test_a_reconstloss": reconst_loss}), test_size_a, save=args.save)
             b_result_dict = utils.save_output(session, '_'.join([args.prefix, args.test_dataset_b]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_next_b}), OrderedDict({"test_b_mean": z_mean, "test_b_log_var": z_log_var, "test_b_reconstloss": reconst_loss}), test_size_b, save=args.save)
+
+            test_stuff_result_dict = {}
+            for idx, item in enumerate(other_test_imgs):
+                test_result_dict = utils.save_output(session, '_'.join([args.prefix, item]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: test_stuff_dict['test_next_ops'][idx]}), OrderedDict({item + "_mean": z_mean, item + "_log_var": z_log_var, item + "_reconstloss": reconst_loss}), test_size_a, save=args.save)
+                test_stuff_result_dict[item] = test_result_dict
+
             if args.neg_dataset is not None:
                 neg_result_dict = utils.save_output(session, '_'.join([args.prefix, args.neg_dataset]), epoch, global_iters, args.batch_size, OrderedDict({encoder_input: neg_test_next}), OrderedDict({"test_neg_mean": z_mean, "test_neg_log_var": z_log_var, "test_neg_reconstloss": reconst_loss}), neg_test_size, save=args.save)
-            if args.alpha_generated > 0.0:
+            if args.alpha_generated > 0.0 or args.eubo_gen_lambda > 0.0:
                 sampled_latent_tensor = tf.random_normal([args.batch_size, args.latent_dim])
                 _ = utils.save_output(session, '_'.join([args.prefix, args.dataset]), epoch, global_iters, args.batch_size, OrderedDict({sampled_latent_input: sampled_latent_tensor}), OrderedDict({"adv_gen_mean": zpp_mean, "adv_gen_log_var": zpp_log_var}), args.latent_cloud_size, save=args.save)
 
@@ -561,8 +575,8 @@ with tf.Session() as session:
 
         if ((global_iters % iterations_per_epoch == 0) and (epoch + 1) % 10 == 0):
 
-            _ = session.run([test_iterator_init_op_a, test_iterator_init_op_b])
-            xt_a, xt_b = session.run([test_next_a, test_next_b])
+            _ = session.run([test_iterator_init_op_a, test_iterator_init_op_b] + test_stuff_dict['test_iterator_init_ops'])
+            xt_a, xt_b, *other_xts = session.run([test_next_a, test_next_b] + test_stuff_dict['test_next_ops'])
             xt_a_r, = session.run([xr], feed_dict={encoder_input: xt_a})
             xt_b_r, = session.run([xr], feed_dict={encoder_input: xt_b})
 
@@ -583,11 +597,17 @@ with tf.Session() as session:
             print('Save B test images.')
             test_b_img = utils.plot_images(np.transpose(make_observations(xt_b_r), (0, 2, 3, 1)), n_x, n_y, "{}_test_b_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None, save=args.save)
 
+            for idx, item in enumerate(other_test_imgs):
+                xt_r, = session.run([xr], feed_dict={encoder_input: other_xts[idx]})
+                test_other_img = utils.plot_images(np.transpose(make_observations(xt_r), (0, 2, 3, 1)), n_x, n_y, "{}_test_{}_epoch{}_iter{}".format(args.prefix, item, epoch + 1, global_iters), text=None, save=args.save)
+                neptune.send_image(item, test_other_img)
+
             neptune.send_image('original', orig_img)
             neptune.send_image('generated', gen_img)
             neptune.send_image('reconstruction', rec_img)
             neptune.send_image('test_a', test_a_img)
             neptune.send_image('test_b', test_b_img)
+
             if args.neg_dataset:
                 print('Save negative images.')
                 neg_img = utils.plot_images(np.transpose(make_observations(x_n), (0, 2, 3, 1)), n_x, n_y, "{}_negative_epoch{}_iter{}".format(args.prefix, epoch + 1, global_iters), text=None, save=args.save)
@@ -609,7 +629,7 @@ with tf.Session() as session:
             def kldiv(mean, log_var):
                 return 0.5 * np.sum( - log_var + np.square(mean) + np.exp(log_var) - 1, axis=-1)
 
-            def compare(a_result_dict, b_result_dict, a_name, b_name, postfix=""):
+            def compare(a_result_dict, b_result_dict, test_stuff_result_dict, a_name, b_name, postfix=""):
                 kl_a = kldiv( np.array(a_result_dict['test_a_mean']), np.array(a_result_dict['test_a_log_var']))
                 kl_b = kldiv( np.array(b_result_dict['test_b_mean']), np.array(b_result_dict['test_b_log_var']))
                 mean_a = np.mean(a_result_dict['test_a_mean'], axis=1)
@@ -643,6 +663,25 @@ with tf.Session() as session:
                 neptune.send_metric('test_kl_a{}'.format(postfix), x=global_iters, y=np.mean(kl_a))
                 neptune.send_metric('test_kl_b{}'.format(postfix), x=global_iters, y=np.mean(kl_b))
 
+                for key, item in test_stuff_result_dict.items():
+                    kl_test = kldiv( np.array(item[key + '_mean']), np.array(item[key + '_log_var']))
+                    mean_test = np.mean(item[key + '_mean'], axis=1)
+                    rec_test = item[key + '_reconstloss']
+                    var_test = np.exp(item[key + '_log_var'])
+                    nll_test = kl_test + rec_test
+                    bpd_test = nll_test / original_dim
+                    auc_kl_test = roc_auc_score(np.concatenate([np.zeros_like(kl_a), np.ones_like(kl_test)]), np.concatenate([kl_a, kl_test]))
+                    auc_nll_test = roc_auc_score(np.concatenate([np.zeros_like(nll_a), np.ones_like(nll_test)]), np.concatenate([nll_a, nll_test]))
+
+                    neptune.send_metric('test_mean_{}{}'.format(key, postfix), x=global_iters, y=np.mean(mean_test))
+                    neptune.send_metric('test_var_{}{}'.format(key, postfix), x=global_iters, y=np.mean(var_test, axis=(0,1)))
+                    neptune.send_metric('test_rec_{}{}'.format(key, postfix), x=global_iters, y=np.mean(rec_test))
+                    neptune.send_metric('test_kl_{}{}'.format(key, postfix), x=global_iters, y=np.mean(kl_test))
+                    neptune.send_metric('test_bpd_{}{}'.format(key, postfix), x=global_iters, y=np.mean(bpd_test))
+                    neptune.send_metric('auc_kl_{}_vs_{}{}'.format(args.test_dataset_a, key, postfix), x=global_iters, y=auc_kl_test)
+                    neptune.send_metric('auc_bpd_{}{}'.format(key, postfix), x=global_iters, y=auc_nll_test)
+
+
                 auc_kl = roc_auc_score(np.concatenate([np.zeros_like(kl_a), np.ones_like(kl_b)]), np.concatenate([kl_a, kl_b]))
                 auc_mean = roc_auc_score(np.concatenate([np.zeros_like(mean_a), np.ones_like(mean_b)]), np.concatenate([mean_a, mean_b]))
                 auc_rec = roc_auc_score(np.concatenate([np.zeros_like(rec_a), np.ones_like(rec_b)]), np.concatenate([rec_a, rec_b]))
@@ -669,7 +708,7 @@ with tf.Session() as session:
                     neptune.send_metric('auc', x=global_iters, y=auc_nll)
                 return kl_a, kl_b, rec_a, rec_b
 
-            kl_a, kl_b, rec_a, rec_b = compare(a_result_dict, b_result_dict, args.test_dataset_a, args.test_dataset_b, "")
+            kl_a, kl_b, rec_a, rec_b = compare(a_result_dict, b_result_dict, test_stuff_result_dict, args.test_dataset_a, args.test_dataset_b, "")
 
         if args.save and (global_iters % iterations_per_epoch == 0) and ((epoch + 1) % 10 == 0):
             np.savez("{}_kl_epoch{}_iter{}".format(args.prefix, epoch+1, global_iters), labels=np.concatenate([np.zeros_like(kl_a), np.ones_like(kl_b)]), kl=np.concatenate([kl_a, kl_b]))

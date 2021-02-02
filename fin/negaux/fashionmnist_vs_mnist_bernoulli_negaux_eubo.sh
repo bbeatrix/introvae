@@ -26,7 +26,7 @@ gcnorm=None
 save_latent=True
 frequency=1000
 d=$(date +%Y-%m-%d-%H:%M:%S)
-name_prefix='FIN_negaux_eubo'
+name_prefix='TEST_constimgs_negaux_eubo'
 color=False
 train_dataset='fashion_mnist'
 test_dataset_a='fashion_mnist'
@@ -57,7 +57,7 @@ eubo_neg_lambda=1.0
 eubo_lambda=0.0
 z_num_samples=1
 seed=0
-CUDA_VISIBLE_DEVICES=0
+CUDA_VISIBLE_DEVICES=1
 
 tags="${name_prefix},${neg_dataset},${test_dataset_a},${test_dataset_b},${obs_noise_model}"
 name="${d}_${name_prefix}_${test_dataset_a}_vs_${test_dataset_b}_${obs_noise_model}_neg_dataset=${neg_dataset}_seed=${seed}"

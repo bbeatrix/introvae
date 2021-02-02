@@ -11,6 +11,7 @@ K.set_image_data_format('channels_first')
 
 def get_dataset(args, dataset, split, batch_size, limit, augment=False, normal_class=-1, outliers=False, add_obs_noise=False, add_iso_noise=False):
 
+
     if dataset == 'emnist-letters':
         dataset = 'emnist/letters'
     if dataset == 'imagenet':
@@ -27,10 +28,18 @@ def get_dataset(args, dataset, split, batch_size, limit, augment=False, normal_c
     elif dataset == 'uniform-noise':
         def random_uniform_generator():
             while True:
-                yield {'image': np.random.randint(0, high=255, size=(28,28,1))}
+                yield {'image': np.random.randint(0, high=255, size=(28, 28, 1))}
         ds = tf.data.Dataset.from_generator(random_uniform_generator, output_types={'image': tf.int32}, output_shapes={'image': (28, 28, 1)})
+    elif 'constant' in dataset:
+        const_value = dataset.split("_")[-1]
+        def constant_generator():
+            while True:
+                yield {'image': np.full((args.shape[0], args.shape[1], args.n_channels), const_value)}
+        ds = tf.data.Dataset.from_generator(constant_generator, output_types={'image': tf.int32}, output_shapes={'image': (args.shape[0], args.shape[1], args.n_channels)})
+
     else:
         ds = tfds.load(name=dataset, split=split)
+
 
     if split == tfds.Split.TRAIN:
         ds = ds.shuffle(100000)
